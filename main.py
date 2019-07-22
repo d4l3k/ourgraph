@@ -1,12 +1,14 @@
 from typing import List
 import json
 
-import torch
-import pydgraph
-from torch.utils.data import Dataset, DataLoader
-from grpc._cython import cygrpc
 from cityhash import CityHash64
+from grpc._cython import cygrpc
+import torch
+from torch.nn import EmbeddingBag
+from torch.utils.data import Dataset, DataLoader
 import fasttext
+import numpy as np
+import pydgraph
 
 
 DGRAPH_STUB = pydgraph.DgraphClientStub(
@@ -17,6 +19,27 @@ DGRAPH_STUB = pydgraph.DgraphClientStub(
     ],
 )
 DGRAPH = pydgraph.DgraphClient(DGRAPH_STUB)
+
+
+class FastTextEmbeddingBag(EmbeddingBag):
+    def __init__(self, model_path: str):
+        self.model = fasttext.load_model(model_path)
+        input_matrix = self.model.get_input_matrix()
+        input_matrix_shape = input_matrix.shape
+        super().__init__(input_matrix_shape[0], input_matrix_shape[1])
+        self.weight.data.copy_(torch.tensor(input_matrix, dtype=torch.float))
+
+    def forward(self, words: List[str]) -> torch.Tensor:
+        word_subinds = np.empty([0], dtype=np.int64)
+        word_offsets = [0]
+        for word in words:
+            _, subinds = self.model.get_subwords(word)
+            word_subinds = np.concatenate((word_subinds, subinds))
+            word_offsets.append(word_offsets[-1] + len(subinds))
+        word_offsets = word_offsets[:-1]
+        ind = torch.tensor(word_subinds, dtype=torch.long)
+        offsets = torch.tensor(word_offsets, dtype=torch.long)
+        return super().forward(ind, offsets)
 
 
 def filter_uids(uids: List[str], train: bool) -> List[str]:
@@ -83,3 +106,6 @@ class GraphDataset(Dataset):
 train_dataset = GraphDataset(train=True)
 val_dataset = GraphDataset(train=False)
 assert len(train_dataset) > len(val_dataset)
+
+a = FastTextEmbeddingBag("crawl-300d-2M-subword.bin")
+print(a(['foo', 'bar']))

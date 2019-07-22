@@ -1,0 +1,7 @@
+{
+  "binary": "/usr/bin/pyre.bin",
+  "source_directories": [
+    "."
+  ],
+  "typeshed": "/usr/lib/pyre_check/typeshed/"
+}
