@@ -125,10 +125,10 @@ func (s FFNetScraper) scrapeFFGroup(c Consumer) error {
 var (
 	ffFavCountRegex = regexp.MustCompile(`Favs: ([0-9,]+) -`)
 	ffDescRegex     = regexp.MustCompile(
-		`- Rated: ([^\-]+) -( [^\-]+ -)? ([^\-]+) - Chapters: .+`,
+		`- Rated: (\S+) -( \S+ -)? (\S+) - Chapters: .+`,
 	)
 	ffCharactersRegex = regexp.MustCompile(`Published: .+ - (.+)( - Complete)?`)
-	ffCharacterRegex  = regexp.MustCompile(`[[], ]+`)
+	ffCharacterRegex  = regexp.MustCompile(`[\[\],]+`)
 )
 
 func atoi(s string) int {
@@ -160,6 +160,16 @@ func nodeText(n *html.Node) string {
 		}
 	}
 	return sb.String()
+}
+
+func removeEmpty(a []string) []string {
+	out := make([]string, 0, len(a))
+	for _, item := range a {
+		if item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
@@ -227,6 +237,7 @@ func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
 				}
 			}
 
+			st.Tags = removeEmpty(st.Tags)
 			stories = append(stories, st)
 		}
 	}

@@ -34,8 +34,9 @@ func TestDocToUser(t *testing.T) {
 				xgray">Harry Potter - Rated: T - English - Drama - Chapters: 58 - Words:
 				48,219 - Reviews: 246 - Favs: 102 - Follows: 80 - Updated: <span
 				data-xutime="1527040475">May 22, 2018</span> - Published: <span
-				data-xutime="1174348577">Mar 19, 2007</span></div></div></div>
-			</div>
+				data-xutime="1174348577">Mar 19, 2007</span>
+				</div></div>
+				</div>
 			`,
 			schema.User{
 				Name: "Title Foo",
@@ -56,6 +57,31 @@ func TestDocToUser(t *testing.T) {
 						Chapters:  58,
 						Image:     "//foo.com/bar",
 						Tags:      []string{"harry-potter", "t", "english", "drama"},
+					},
+				},
+			},
+		},
+		{
+			`
+			<div id="content_wrapper_inner"><span>Title Foo</span></div>
+			<div class="favstories" >
+				<div><div>
+					RWBY - Rated: T - English - Sci-Fi/Fantasy - Chapters: 58 - Words: 78,803 - Reviews: 75 - Favs: 58 - Follows: 72 - Updated: 3/30/2015 - Published: 8/23/2013 - [OC, Blake B.] Ruby R., Weiss S.
+				</div></div>
+				</div>
+			</div>
+			`,
+			schema.User{
+				Name: "Title Foo",
+				Urls: []string{
+					"https://www.fanfiction.net/u/1000",
+				},
+				Username: "title-foo",
+				Likes: []schema.Document{
+					{
+						Url:       "https://www.fanfiction.net/s/0",
+						LikeCount: 58,
+						Tags:      []string{"t", "english", "sci-fi", "fantasy", "oc", "blake-b", "ruby-r", "weiss-s"},
 					},
 				},
 			},
