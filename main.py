@@ -1,7 +1,7 @@
 from typing import List
 import json
 
-from cityhash import CityHash64
+import cityhash
 from grpc._cython import cygrpc
 import torch
 from torch.nn import EmbeddingBag
@@ -30,7 +30,7 @@ class FastTextEmbeddingBag(EmbeddingBag):
         self.weight.data.copy_(torch.tensor(input_matrix, dtype=torch.float))
 
     def forward(self, words: List[str]) -> torch.Tensor:
-        word_subinds = np.empty([0], dtype=np.int64)
+        word_subinds = np.zeros([0], dtype=np.int64)
         word_offsets = [0]
         for word in words:
             _, subinds = self.model.get_subwords(word)
@@ -49,7 +49,7 @@ def filter_uids(uids: List[str], train: bool) -> List[str]:
     """
     return [
         uid for uid in uids
-        if (CityHash64(uid) % 20 == 0) != train
+        if (cityhash.CityHash64(uid) % 20 == 0) != train
     ]
 
 
@@ -84,8 +84,10 @@ def users() -> List[str]:
 
 
 ALL_DOCS = docs()
+DOC_IDX = {v: i for i, v in ALL_DOCS}
 ALL_USERS = users()
 
+TAG_EMBEDDING_SIZE = 10000
 
 class GraphDataset(Dataset):
     """
@@ -107,5 +109,5 @@ train_dataset = GraphDataset(train=True)
 val_dataset = GraphDataset(train=False)
 assert len(train_dataset) > len(val_dataset)
 
-a = FastTextEmbeddingBag("crawl-300d-2M-subword.bin")
-print(a(['foo', 'bar']))
+#a = FastTextEmbeddingBag("crawl-300d-2M-subword.bin")
+#print(a(['foo', 'bar']))

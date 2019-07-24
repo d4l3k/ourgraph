@@ -3,5 +3,8 @@
   "source_directories": [
     "."
   ],
-  "typeshed": "/usr/lib/pyre_check/typeshed/"
+  "typeshed": "/usr/lib/pyre_check/typeshed/",
+  "search_path": [
+    "/usr/lib/python3.7/site-packages/"
+  ]
 }
