@@ -16,3 +16,6 @@
 
 .pyre/
 
+
+*neomake*
+__pycache__

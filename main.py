@@ -1,113 +1,81 @@
-from typing import List
-import json
+import multiprocessing
 
-import cityhash
-from grpc._cython import cygrpc
 import torch
-from torch.nn import EmbeddingBag
-from torch.utils.data import Dataset, DataLoader
-import fasttext
-import numpy as np
-import pydgraph
+from torch import nn
+from torch import optim
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+import model
+import dataset
+
+def all_to(arr, device):
+    return [a.to(device, non_blocking=True) for a in arr]
+
+def main():
+    device = torch.device('cuda')
+
+    pool = multiprocessing.Pool(10)
+    print('loading from dgraph...')
+    ALL_DOCS = pool.apply(dataset.load_docs)
+    ALL_USERS = pool.apply(dataset.load_users)
+    print('done loading: len(docs)={} len(users)={}'.format(
+    len(ALL_DOCS), len(ALL_USERS)))
+
+    train_dataset = dataset.GraphDataset(ALL_DOCS, ALL_USERS, train=True)
+    val_dataset = dataset.GraphDataset(ALL_DOCS, ALL_USERS, train=False)
+    assert len(train_dataset) > len(val_dataset)
+
+    m = model.Model(num_docs=len(ALL_DOCS)).to(device)
+    print(m)
+
+    bs = 16
+    num_workers = 16
+    train_loader = DataLoader(train_dataset, batch_size=bs, shuffle=True,
+            num_workers=num_workers, worker_init_fn=train_dataset.init,
+            collate_fn=dataset.graph_collate, pin_memory=False)
+    val_loader = DataLoader(val_dataset, batch_size=bs, shuffle=False,
+            num_workers=num_workers, worker_init_fn=val_dataset.init,
+            collate_fn=dataset.graph_collate, pin_memory=False)
 
 
-DGRAPH_STUB = pydgraph.DgraphClientStub(
-    'localhost:9080',
-    options=[
-        (cygrpc.ChannelArgKey.max_send_message_length, -1),
-        (cygrpc.ChannelArgKey.max_receive_message_length, -1)
-    ],
-)
-DGRAPH = pydgraph.DgraphClient(DGRAPH_STUB)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(m.parameters())
+
+    for epoch in range(1000):
+        running_loss = 0
+        running_accuracy = 0
+        count = 0
+
+        progress = tqdm(train_loader)
+        for i, (a, b, liked) in enumerate(progress):
+            a = all_to(a, device)
+            b = all_to(b, device)
+            liked = liked.to(device, non_blocking=True)
+            optimizer.zero_grad()
+            a_vec = m(*a)
+            b_vec = m(*b)
+            similarity = (a_vec*b_vec).sum(-1)
+            loss = criterion(similarity, liked)
+            loss.backward()
+            optimizer.step()
+            with torch.no_grad():
+                running_loss += loss
+                running_accuracy += (similarity.round() - liked.round()).abs().clamp(0, 1).sum()
+                count += len(liked)
+                progress.set_description(
+                        "epoch {}: loss={:.4f} accuracy={:.3f}".format(epoch,
+                            running_loss/count, running_accuracy/count),
+                        refresh=False)
+                if i % 100 == 0:
+                    print(liked, similarity)
+
+            if i == 1000:
+                break
 
 
-class FastTextEmbeddingBag(EmbeddingBag):
-    def __init__(self, model_path: str):
-        self.model = fasttext.load_model(model_path)
-        input_matrix = self.model.get_input_matrix()
-        input_matrix_shape = input_matrix.shape
-        super().__init__(input_matrix_shape[0], input_matrix_shape[1])
-        self.weight.data.copy_(torch.tensor(input_matrix, dtype=torch.float))
+    #a = FastTextEmbeddingBag("crawl-300d-2M-subword.bin")
+    #print(a(['foo', 'bar']))
 
-    def forward(self, words: List[str]) -> torch.Tensor:
-        word_subinds = np.zeros([0], dtype=np.int64)
-        word_offsets = [0]
-        for word in words:
-            _, subinds = self.model.get_subwords(word)
-            word_subinds = np.concatenate((word_subinds, subinds))
-            word_offsets.append(word_offsets[-1] + len(subinds))
-        word_offsets = word_offsets[:-1]
-        ind = torch.tensor(word_subinds, dtype=torch.long)
-        offsets = torch.tensor(word_offsets, dtype=torch.long)
-        return super().forward(ind, offsets)
-
-
-def filter_uids(uids: List[str], train: bool) -> List[str]:
-    """
-    filter_uids returns 5% of the uids if train is false. 95% otherwise.
-    uses hashing to remain consistent
-    """
-    return [
-        uid for uid in uids
-        if (cityhash.CityHash64(uid) % 20 == 0) != train
-    ]
-
-
-def docs() -> List[str]:
-    """
-    docs returns all document UIDs
-    """
-    resp = DGRAPH.txn(read_only=True).query(
-        """{
-            docs(func: has(url)) {
-                uid
-            }
-        }""",
-    )
-    res = json.loads(resp.json)
-    return [doc["uid"] for doc in res["docs"]]
-
-
-def users() -> List[str]:
-    """
-    users returns all user UIDs
-    """
-    resp = DGRAPH.txn(read_only=True).query(
-        """{
-            users(func: has(username)) {
-                uid
-            }
-        }""",
-    )
-    res = json.loads(resp.json)
-    return [user["uid"] for user in res["users"]]
-
-
-ALL_DOCS = docs()
-DOC_IDX = {v: i for i, v in ALL_DOCS}
-ALL_USERS = users()
-
-TAG_EMBEDDING_SIZE = 10000
-
-class GraphDataset(Dataset):
-    """
-    GraphDataset returns a triplet of (doc, connected doc, disconnected doc).
-    """
-    def __init__(self, train: bool):
-        self.train: bool = train
-        self.docs: List[str] = ALL_DOCS
-        self.users: List[str] = filter_uids(ALL_USERS, train)
-
-    def __len__(self) -> int:
-        return len(self.users)
-
-    def __getitem__(self, i):
-        pass
-
-
-train_dataset = GraphDataset(train=True)
-val_dataset = GraphDataset(train=False)
-assert len(train_dataset) > len(val_dataset)
-
-#a = FastTextEmbeddingBag("crawl-300d-2M-subword.bin")
-#print(a(['foo', 'bar']))
+if __name__ == '__main__':
+    main()
