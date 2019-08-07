@@ -40,12 +40,13 @@ class Model(nn.Module):
         super().__init__()
 
         self.tag_embedding = torch.nn.EmbeddingBag(
-                TAG_EMBEDDING_SIZE, TAG_EMBEDDING_DIM, mode="max")
+                TAG_EMBEDDING_SIZE, TAG_EMBEDDING_DIM,
+                scale_grad_by_freq=True)
         self.doc_embedding = torch.nn.Embedding(
                 num_docs, DOC_EMBEDDING_DIM)
-        self.fc1 = nn.Linear(TAG_EMBEDDING_DIM + DOC_EMBEDDING_DIM + 5, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, 64)
+        self.fc1 = nn.Linear(TAG_EMBEDDING_DIM + DOC_EMBEDDING_DIM + 5, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 32)
 
     def forward(self, dense, docs, tags, tag_offsets):
         tags = self.tag_embedding(tags, tag_offsets)

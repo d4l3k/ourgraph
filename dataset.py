@@ -43,7 +43,8 @@ def load_docs() -> List[str]:
         }""",
     )
     res = json.loads(resp.json)
-    return [doc["uid"] for doc in res["docs"]]
+    docs = [doc["uid"] for doc in res["docs"]]
+    return docs
 
 
 def load_users() -> List[str]:
@@ -107,7 +108,7 @@ class GraphDataset(Dataset):
     def __getitem__(self, i):
         docs = self.get_user(self.users[i])["likes"]
 
-        liked = random.randint(0, 1)
+        liked = 1 if random.randint(0, 1) else -1
         a = self.transform_doc(random.choice(docs))
         if liked == 1:
             b = self.transform_doc(random.choice(docs))

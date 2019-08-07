@@ -3,6 +3,7 @@ import multiprocessing
 import torch
 from torch import nn
 from torch import optim
+from adamW import AdamW
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -39,8 +40,10 @@ def main():
             collate_fn=dataset.graph_collate, pin_memory=False)
 
 
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(m.parameters())
+    #criterion = nn.MSELoss()
+    criterion = nn.CosineEmbeddingLoss(margin=0.5)
+    #optimizer = optim.Adam(m.parameters(), lr=3e-4)
+    optimizer = optim.SGD(m.parameters(), lr=0.001)
 
     for epoch in range(1000):
         running_loss = 0
@@ -55,13 +58,13 @@ def main():
             optimizer.zero_grad()
             a_vec = m(*a)
             b_vec = m(*b)
-            similarity = (a_vec*b_vec).sum(-1)
-            loss = criterion(similarity, liked)
+            loss = criterion(a_vec, b_vec, liked)
             loss.backward()
             optimizer.step()
             with torch.no_grad():
+                similarity = (a_vec*b_vec).sum(-1)
                 running_loss += loss
-                running_accuracy += (similarity.round() - liked.round()).abs().clamp(0, 1).sum()
+                running_accuracy += (similarity.round() == liked.round()).float().sum()
                 count += len(liked)
                 progress.set_description(
                         "epoch {}: loss={:.4f} accuracy={:.3f}".format(epoch,
