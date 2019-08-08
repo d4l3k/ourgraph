@@ -2,6 +2,7 @@ package scrapers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -19,9 +20,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-type Consumer struct {
-	Users     chan<- schema.User
-	Documents chan<- schema.Document
+func init() {
+	addScraper(&FFNetScraper{})
 }
 
 type FFNetScraper struct {
@@ -79,7 +79,7 @@ func (s FFNetScraper) userCount() (int, error) {
 	return count, nil
 }
 
-func (s *FFNetScraper) Scrape(c Consumer) error {
+func (s *FFNetScraper) Scrape(ctx context.Context, c Consumer) error {
 	s.domain = "www.fanfiction.net"
 	count, err := s.userCount()
 	if err != nil {

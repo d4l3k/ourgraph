@@ -13,6 +13,7 @@ import (
 	"github.com/dgraph-io/dgo"
 	"github.com/dgraph-io/dgo/protos/api"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
@@ -62,8 +63,14 @@ func (s *Server) Run(ctx context.Context) error {
 
 	go s.upload(ctx, users, docs)
 
-	scraper := scrapers.FFNetScraper{}
-	return scraper.Scrape(c)
+	group, ctx := errgroup.WithContext(ctx)
+	for _, s := range scrapers.Scrapers() {
+		s := s
+		group.Go(func() error {
+			return s.Scrape(ctx, c)
+		})
+	}
+	return group.Wait()
 }
 
 func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan schema.Document) {
@@ -80,6 +87,13 @@ func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schem
 	if len(user.Username) == 0 {
 		return errors.Errorf("invalid username %q", user.Username)
 	}
+	if len(user.Urls) == 0 {
+		return errors.Errorf("user missing url")
+	}
+	if len(user.Name) == 0 {
+		return errors.Errorf("user missing name")
+	}
+
 	if uid, ok := s.usernameCache[user.Username]; ok {
 		user.Uid = uid
 	} else {
@@ -127,6 +141,13 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 	if len(doc.Url) == 0 {
 		return errors.Errorf("invalid url %q", doc.Url)
 	}
+	if len(doc.Name) == 0 {
+		return errors.Errorf("document missing name")
+	}
+	if len(doc.Desc) == 0 {
+		return errors.Errorf("document missing description")
+	}
+
 	if uid, ok := s.urlCache[doc.Url]; ok {
 		doc.Uid = uid
 	} else {
