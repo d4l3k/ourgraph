@@ -683,6 +683,9 @@ func RebuildIndex(ctx context.Context, rb *IndexRebuild) error {
 		return nil
 	}
 
+	glog.Infof("No build index is set! Refusing to rebuild index.")
+	return nil
+
 	glog.Infof("Rebuilding index for attr %s and tokenizers %s", rb.Attr,
 		rebuildInfo.tokenizersToRebuild)
 	// Before rebuilding, the existing index needs to be deleted.
