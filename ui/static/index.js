@@ -69,7 +69,7 @@ function goToPath (path, offset) {
     }
     show($progress)
 
-    fetch(endpoint + '?callback=?&id=' + stationId + '&offset=' + offset)
+    fetch(endpoint + '?id=' + stationId + '&offset=' + offset)
       .then(resp => resp.json())
       .then(data => {
         stories = stories.concat(data.Recommendations)
@@ -87,12 +87,11 @@ function goToPath (path, offset) {
         })
 
         const docHtml = data.Documents.map(v => storyElement(v)).join('\n')
-        console.log(docHtml)
         document.querySelector('#input-col').innerHTML = docHtml
         renderStories()
         show(document.querySelector('#stories'))
       }).catch(err => {
-        console.log(err)
+        console.error(err)
         $error.innerText = err
         show($error)
       }).then(() => {
@@ -110,7 +109,6 @@ function renderStories () {
     dispStories = stories
   } else {
     var searchResults = index.search(query)
-    console.log(query, searchResults)
     _.each(searchResults, function (result) {
       dispStories.push(stories[result.ref])
     })
