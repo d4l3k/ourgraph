@@ -104,6 +104,12 @@ func getDocsByURL(ctx context.Context, txn *dgo.Txn, url string) ([]schema.Docum
 				url
 				title
 				desc
+				author
+				tags
+				chapters
+				complete
+				reviews
+				likecount
 			}
 		}`,
 		map[string]string{"$url": url},
@@ -133,6 +139,12 @@ func getDocsByUIDs(ctx context.Context, txn *dgo.Txn, uids []string) ([]schema.D
 					url
 					title
 					desc
+					author
+					tags
+					chapters
+					complete
+					reviews
+					likecount
 				}
 			}`,
 			strings.Join(uids, ","),

@@ -14,7 +14,7 @@ if (window.location.search === '?prod') {
 function renderBackground () {
   var pattern = Trianglify({
     width: window.innerWidth,
-    height: window.innerHeight * 4
+    height: window.innerHeight
   })
   pattern.canvas(background)
 };
@@ -31,6 +31,12 @@ function storyElement (story, score) {
     </span>
     <div>
       ${story.desc}
+    </div>
+    <div class="stats">
+      Chapters: ${story.chapters} -
+      Reviews: ${story.reviews} -
+      Likes: ${story.likecount} -
+      Tags: ${(story.tags || []).join(', ')}
     </div>
   </li>`
 }
