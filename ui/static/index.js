@@ -76,7 +76,15 @@ function goToPath (path, offset) {
     show($progress)
 
     fetch(endpoint + '?id=' + stationId + '&offset=' + offset)
-      .then(resp => resp.json())
+      .then(resp => {
+        if (resp.ok) {
+          return resp.json()
+        }
+
+        return resp.text().then(error => {
+          throw new Error(`${resp.status} ${resp.statusText}: ${error}`)
+        })
+      })
       .then(data => {
         stories = stories.concat(data.Recommendations)
         index = lunr(function () {
