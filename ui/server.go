@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/dgraph-io/dgo"
 	"github.com/dgraph-io/dgo/protos/api"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
@@ -38,37 +40,39 @@ func requestFormInt(r *http.Request, field string, def int) int {
 	return num
 }
 
-func (s *server) handleRecommendation(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
+func (s *server) handleRecommendation(r *http.Request) (interface{}, error) {
 	id := r.FormValue("id")
 	limit := requestFormInt(r, "limit", 100)
 	offset := requestFormInt(r, "offset", 0)
 	if limit > 200 || limit < 0 {
-		http.Error(w, "limit must be  <= 200 && >= 0", 400)
-		return
+		return nil, errors.Errorf("limit must be  <= 200 && >= 0")
 	}
 	if offset < 0 {
-		http.Error(w, "offset must be  >= 0", 400)
-		return
+		return nil, errors.Errorf("offset must be  >= 0")
 	}
-	resp, err := s.recommendations(r.Context(), id, limit, offset)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
+	return s.recommendations(r.Context(), id, limit, offset)
+}
 
-	jsonBytes, err := json.Marshal(resp)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	callback := r.FormValue("callback")
-	if callback != "" {
-		fmt.Fprintf(w, "%s(%s)", callback, jsonBytes)
-	} else {
-		w.Write(jsonBytes)
+func jsonHandler(f func(r *http.Request) (interface{}, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		resp, err := f(r)
+		log.Printf("%s %s: %+v", r.Method, r.URL.Path, err)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		jsonBytes, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if _, err := w.Write(jsonBytes); err != nil {
+			log.Printf("failed to write %+v", err)
+		}
 	}
 }
 
@@ -90,63 +94,131 @@ func splitURLs(urls string) []string {
 	return arr
 }
 
+func getDocsByURL(ctx context.Context, txn *dgo.Txn, url string) ([]schema.Document, error) {
+	return getDocsInternal(
+		ctx,
+		txn,
+		`query docs($url: string) {
+			docs(func: eq(url, $url)) {
+				uid
+				url
+				title
+				desc
+			}
+		}`,
+		map[string]string{"$url": url},
+	)
+}
+
+var uidRegex = regexp.MustCompile("^0x[0-9a-fA-F]+$")
+
+func validUID(uid string) bool {
+	return uidRegex.MatchString(uid)
+}
+
+func getDocsByUIDs(ctx context.Context, txn *dgo.Txn, uids []string) ([]schema.Document, error) {
+	// This method is pretty dangerous since it's doing raw template manipulation.
+	for _, uid := range uids {
+		if !validUID(uid) {
+			return nil, errors.Errorf("invalid uid %q", uid)
+		}
+	}
+	return getDocsInternal(
+		ctx,
+		txn,
+		fmt.Sprintf(
+			`{
+				docs(func: uid(%s)) {
+					uid
+					url
+					title
+					desc
+				}
+			}`,
+			strings.Join(uids, ","),
+		),
+		map[string]string{},
+	)
+}
+
+func getDocsInternal(ctx context.Context, txn *dgo.Txn, query string, params map[string]string) ([]schema.Document, error) {
+	resp, err := txn.QueryWithVars(ctx, query, params)
+	if err != nil {
+		return nil, errors.Wrapf(err, "QueryWithVars")
+	}
+	results := struct {
+		Docs []schema.Document `json:"docs"`
+	}{}
+	if err := json.Unmarshal(resp.Json, &results); err != nil {
+		return nil, errors.Wrapf(err, "error unmarshalling dgraph response")
+	}
+	return results.Docs, nil
+}
+
 func (s *server) recommendations(ctx context.Context, id string, limit, offset int) (response, error) {
 	urls := splitURLs(id)
-	recs := map[string]recommendation{}
+	txn := s.dgo.NewReadOnlyTxn().BestEffort()
+
+	// Fetch documents first
 	var docs []schema.Document
 	for _, url := range urls {
-		resp, err := s.dgo.NewReadOnlyTxn().BestEffort().QueryWithVars(ctx,
-			`query recs($url: string) {
-				docs(func: eq(url, $url)) {
-					url
-					title
-					desc
-				}
-
-				var(func: eq(url, $url)) @ignorereflex {
-					~likes {
-						likes {
-							uids as uid
-						}
-					}
-				}
-
-				var(func: uid(uids)) @groupby(uid) {
-					counts as count(uid)
-				}
-
-				recs(func: uid(counts)) {
-					count: val(counts)
-					url
-					title
-					desc
-				}
-			}
-		`,
-			map[string]string{"$url": url},
-		)
+		doc, err := getDocsByURL(ctx, txn, url)
 		if err != nil {
 			return response{}, err
 		}
-		results := struct {
-			Docs []schema.Document `json:"docs"`
-			Recs []schema.Document `json:"recs"`
-		}{}
-		if err := json.Unmarshal(resp.Json, &results); err != nil {
-			return response{}, err
+		if len(doc) == 0 {
+			return response{}, errors.Errorf("unknown document %q", url)
 		}
+		docs = append(docs, doc...)
+	}
 
-		log.Printf("json %s", resp.Json)
+	// Fetch recommendations
+	recs := map[string]recommendation{}
+	for _, url := range urls {
+		for offset := 0; offset < 1000000; offset += 1000 {
+			resp, err := txn.QueryWithVars(ctx,
+				`query recs($url: string, $offset: int) {
+				recs(func: eq(url, $url)) @ignorereflex {
+					~likes (first: 1000, offset: $offset) {
+						likes {
+							uid
+						}
+					}
+				}
+			}
+		`,
+				map[string]string{
+					"$url":    url,
+					"$offset": strconv.Itoa(offset),
+				},
+			)
+			if err != nil {
+				return response{}, err
+			}
+			results := struct {
+				Recs []schema.Document `json:"recs"`
+			}{}
+			if err := json.Unmarshal(resp.Json, &results); err != nil {
+				return response{}, err
+			}
 
-		for _, doc := range results.Docs {
-			docs = append(docs, doc)
-		}
+			if len(results.Recs) == 0 {
+				break
+			}
 
-		for _, doc := range results.Recs {
-			rec := recs[doc.Url]
-			rec.Score += 1.0
-			rec.Document = doc
-			recs[doc.Url] = rec
+			for _, origDoc := range results.Recs {
+				for _, user := range origDoc.Likes {
+					for _, doc := range user.Likes {
+						if doc.Uid == "" {
+							return response{}, errors.Errorf("invalid uid for doc %+v", doc)
+						}
+						rec := recs[doc.Uid]
+						rec.Score += 1.0
+						rec.Document = doc
+						recs[doc.Uid] = rec
+					}
+				}
+			}
 		}
 	}
 	var recList []recommendation
@@ -156,6 +228,30 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 	sort.Slice(recList, func(i, j int) bool {
 		return recList[i].Score >= recList[j].Score
 	})
+	if len(recList) >= offset {
+		recList = recList[offset:]
+	} else {
+		recList = recList[:0]
+	}
+	if len(recList) >= limit {
+		recList = recList[:limit]
+	}
+	var uids []string
+	for _, rec := range recList {
+		uids = append(uids, rec.Document.Uid)
+	}
+	recDocs, err := getDocsByUIDs(ctx, txn, uids)
+	if err != nil {
+		return response{}, err
+	}
+	docMap := map[string]schema.Document{}
+	for _, doc := range recDocs {
+		docMap[doc.Uid] = doc
+	}
+	for i, rec := range recList {
+		rec.Document = docMap[rec.Document.Uid]
+		recList[i] = rec
+	}
 	return response{
 		Documents:       docs,
 		Recommendations: recList,
@@ -171,7 +267,11 @@ func run() error {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 	flag.Parse()
 
-	conn, err := grpc.Dial(*dgraphAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(
+		*dgraphAddr,
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100*1000*1000)),
+	)
 	if err != nil {
 		return err
 	}
@@ -184,7 +284,7 @@ func run() error {
 	http.Handle("/static/", fs)
 
 	http.HandleFunc("/", handleIndex)
-	http.HandleFunc("/api/v1/recommendation", s.handleRecommendation)
+	http.HandleFunc("/api/v1/recommendation", jsonHandler(s.handleRecommendation))
 
 	log.Printf("Serving on :%s...", *port)
 
