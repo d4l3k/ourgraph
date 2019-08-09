@@ -386,6 +386,7 @@ class OurgraphApp extends LitElement {
           this.ref('id')
           this.field('title')
           this.field('desc')
+          this.field('tags')
 
           stories.forEach((story, i) => {
             this.add({
