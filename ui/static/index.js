@@ -81,19 +81,20 @@ class MaterialTextField extends LitElement {
         .mdc-text-field, input {
           width: 100%;
         }
-        .mdc-text-field:not(.mdc-text-field--disabled) .mdc-floating-label--float-above {
+        .mdc-text-field--focused:not(.mdc-text-field--disabled) .mdc-floating-label--float-above {
           color: var(--mdc-theme-primary);
         }
       </style>
 
-      <div class="mdc-text-field">
-        <input
-          type="${this.type}"
-          id="my-text-field"
-          class="mdc-text-field__input"
-          value="${this.value}">
-        <label class="mdc-floating-label" for="my-text-field">${this.label}</label>
-        <div class="mdc-line-ripple"></div>
+      <div class="mdc-text-field mdc-text-field--outlined">
+        <input type="${this.type}" id="tf-outlined" class="mdc-text-field__input" value="${this.value}">
+        <div class="mdc-notched-outline">
+          <div class="mdc-notched-outline__leading"></div>
+          <div class="mdc-notched-outline__notch">
+            <label for="tf-outlined" class="mdc-floating-label">${this.label}</label>
+          </div>
+          <div class="mdc-notched-outline__trailing"></div>
+        </div>
       </div>
     `
   }
