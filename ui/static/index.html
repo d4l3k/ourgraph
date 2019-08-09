@@ -2,199 +2,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     #background {
-      width: 100%;
-      position: absolute;
+      position: fixed;
       left: 0;
       top: 0;
-      transform: translate3d(0,0,0);
+      bottom: 0;
+      right: 0;
+      z-index: -1;
     }
     html, body {
       width: 100%;
       height: 100%;
       padding: 0;
       margin: 0;
-      overflow: hidden;
-      transform: translate3d(0,0,0);
       font-family: 'Inter';
-    }
-    dt, dd {
-      display: inline-block;
-      margin: 0 5px 0 0;
-    }
-    #stories {
-      background-color: rgba(255,255,255,0.6) !important;
-    }
-    .error {
-      color: red;
-    }
-    .input-field label {
-      left: 0 !important;
-    }
-    #container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      overflow: auto;
-      overflow-x: hidden;
-    }
-    #stations {
-      width: 400px;
-    }
-    #info {
-      position: absolute;
-      bottom: 0;
-      left: 10px;
-      min-width: 300px;
-    }
-    .xgray, .stats {
-      color: rgba(0,0,0,0.5);
-      margin: 0;
-    }
-    #info .duration {
-      margin-left: 20px;
-    }
-    #info .progress {
-      margin-bottom: 0px;
-    }
-    .header {
-      text-align: center;
-      margin: 80px 0 60px;
-      font-size: 5.5rem;
-      font-weight: 200;
-      text-shadow: 0 2px 5px rgba(0,0,0,0.16),0 2px 10px rgba(0,0,0,0.12);
-      color: white;
-    }
-    .btn {
-      margin: 5px;
-    }
-    #stories-col .collection-item {
-      height: auto;
-    }
-    div.input-field.filter-field {
-      padding-left: 0;
-      padding-right: 0;
-      margin: 0;
-    }
-    div.input-field.filter-field input {
-      margin-bottom: 0;
-    }
-    .card div.row {
-      margin: 0;
-    }
-    .card div.row .col {
-      padding-left: 0;
-    }
-    .card.head .card-content p {
-      padding: 10px 0;
-    }
-    @media (max-width: 600px) {
-      #container .container {
-        width: 100%;
-      }
-      .card {
-        padding: 0 !important;
-      }
-      .header {
-        font-size: 3.5rem !important;
-      }
-    }
-    .hidden {
-      display: none !important;
     }
   </style>
   <title>Ourgraph by Tristan Rice</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/inter-ui@3.9.0/inter.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 </head>
 <body>
   <canvas id="background"></canvas>
-  <div id="container">
-    <div class="container">
-      <h1 class="header">Ourgraph</h1>
-      <div class="row">
-        <div id="input" class="card col offset-l3 l6 m10 offset-m1 s12 head">
-          <div class="card-content">
-            <span class="card-title grey-text text-darken-4">Recommend me something!</span>
-            <p>
-            Ourgraph is a universal recommendation system for stories built on
-            our user data spanning across multiple silos.
-            </p>
-            <div class="input-field">
-              <input id="url" type="url" class="validate">
-              <label for="url" data-error="Invalid URL">Story URL</label>
-            </div>
-            <p>
-            For more focused results you can enter two URLs separated by a "|".
-            </p>
-            <div class="error hidden"></div>
-            <center>
-              <button id="rec" class="btn waves-effect waves-light btn-large" type="submit" name="action">Recommend
-                <i class="mdi-content-send right"></i>
-              </button>
-            </center>
-            <div class="progress hidden">
-              <div class="indeterminate"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div id="stories" class="card col s12 hidden">
-          <div class="card-content">
-            <span class="card-title grey-text text-darken-4">Input</span>
-            <ul class="collection" id="input-col">
-            </ul>
-            <div class="row">
-              <span class="card-title grey-text text-darken-4 col s6">
-                Recommended Stories
-              </span>
-              <div class="input-field col s6 filter-field">
-                <input id="filter" type="text" >
-                <label for="filter">Filter</label>
-              </div>
-            </div>
-            <ul class="collection" id="stories-col">
-            </ul>
-            <center>
-              <button id="more" class="btn waves-effect waves-light" type="submit" name="action">
-                More Stories
-              </button>
-            </center>
-            <div class="progress hidden">
-              <div class="indeterminate"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div id="input" class="card col offset-l3 l6 m10 offset-m1 s12">
-          <div class="card-content">
-            <a href="https://github.com/d4l3k/ourgraph" class="btn waves-effect waves-light right blue">Source Code</a>
-            <p>Copyright (c) 2019 <a href="https://fn.lc">Tristan Rice</a></p>
-            <p>Licensed under the MIT license.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <ourgraph-app></ourgraph-app>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/trianglify/2.0.0/trianglify.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lunr.js/2.3.6/lunr.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/trianglify/2.0.0/trianglify.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lunr.js/2.3.6/lunr.min.js"></script>
 
-<script src="static/index.js"></script>
+  <script src="static/index.js" type="module"></script>
 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
-  ga('create', 'UA-52169625-1', 'fn.lc');
-  ga('send', 'pageview');
-</script>
+    ga('create', 'UA-52169625-1', 'fn.lc');
+    ga('send', 'pageview');
+  </script>
 </body>

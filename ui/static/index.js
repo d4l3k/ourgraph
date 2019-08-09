@@ -1,81 +1,374 @@
-/* global _, Trianglify, lunr */
-
+/* global _, Trianglify, lunr, customElements, fetch */
 'use strict'
 
-var background = document.getElementById('background')
-var endpoint = 'api/v1/recommendation'
+import 'https://unpkg.com/@webcomponents/webcomponentsjs/webcomponents-loader.js?module'
+import {LitElement, html} from 'https://unpkg.com/@polymer/lit-element?module'
+import {MDCTextField} from 'https://unpkg.com/@material/textfield?module'
+import {MDCRipple} from 'https://unpkg.com/@material/ripple?module'
+import {MDCLinearProgress} from 'https://unpkg.com/@material/linear-progress?module'
 
-const $progress = document.querySelector('.progress')
-
+let endpoint = 'api/v1/recommendation'
 // If '?prod' is appended to URL, point to prod.
 if (window.location.search === '?prod') {
   endpoint = 'https://fn.lc/ficrecommend/' + endpoint
 }
-function renderBackground () {
-  var pattern = Trianglify({
-    width: window.innerWidth,
-    height: window.innerHeight
-  })
-  pattern.canvas(background)
-};
-renderBackground()
 
-function storyElement (story, score) {
-  var saveLink = 'http://ficsave.com/?format=epub&e=&auto_download=yes&story_url=' + story.url
-  return `<li class="collection-item">
-    <a href="${story.url}" class="title">${story.title}</a>
-    ${(score ? (' - ' + score) : '')}
-    <span class="secondary-content">
-      <a href="${saveLink}">Download</a>,
-      <a href="#/story/${story.url}">Search</a>
-    </span>
-    <div>
-      ${story.desc}
-    </div>
-    <div class="stats">
-      Chapters: ${story.chapters} -
-      Reviews: ${story.reviews} -
-      Likes: ${story.likecount} -
-      Tags: ${(story.tags || []).join(', ')}
-    </div>
-  </li>`
+class MaterialButton extends LitElement {
+  firstUpdated () {
+    this.mdc = new MDCRipple(this.shadowRoot.querySelector('.mdc-button'))
+  }
+
+  render () {
+    return html`
+      <style>
+        @import "https://unpkg.com/@material/button/dist/mdc.button.min.css";
+        @import "static/shared.css";
+      </style>
+
+      <button class="mdc-button mdc-button--unelevated"><slot></slot></button>
+    `
+  }
 }
-function hide (elem) {
-  elem.classList.add('hidden')
+
+customElements.define('material-button', MaterialButton)
+
+class MaterialProgress extends LitElement {
+  firstUpdated () {
+    this.mdc = new MDCRipple(this.shadowRoot.querySelector('.mdc-linear-progress'))
+  }
+
+  render () {
+    return html`
+      <style>
+        @import "https://unpkg.com/@material/linear-progress/dist/mdc.linear-progress.min.css";
+      </style>
+
+      <div role="progressbar" class="mdc-linear-progress mdc-linear-progress--indeterminate">
+        <div class="mdc-linear-progress__buffering-dots"></div>
+        <div class="mdc-linear-progress__buffer"></div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+          <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+          <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+      </div>
+    `
+  }
 }
-function show (elem) {
-  elem.classList.remove('hidden')
-}
-var curOffset = 0
-var stories = []
-var index
 
-function goToPath (path, offset) {
-  if (_.startsWith(path, '/story/')) {
-    var stationId = _.trimStart(path, '/story/')
-    document.querySelector('#url').value = stationId
+customElements.define('material-progress', MaterialProgress)
 
-    var $error = document.querySelector('.error')
-    var $filter = document.querySelector('#filter')
-
-    if (!offset) {
-      hide(document.querySelector('#stories'))
-      stories = []
-      offset = 0
-      $filter.value = ''
-      index = null
+class MaterialTextField extends LitElement {
+  static get properties () {
+    return {
+      label: { type: String },
+      type: { type: String, value: 'text' },
+      value: { type: String, value: '' }
     }
-    hide($error)
+  }
 
-    curOffset = offset
+  firstUpdated (properties) {
+    this.mdc = new MDCTextField(this.shadowRoot.querySelector('.mdc-text-field'))
+  }
 
-    if (stationId.length == 0) {
-      hide($progress)
+  render () {
+    return html`
+      <style>
+        @import "https://unpkg.com/@material/textfield/dist/mdc.textfield.min.css";
+        @import "static/shared.css";
+
+        .mdc-text-field, input {
+          width: 100%;
+        }
+        .mdc-text-field:not(.mdc-text-field--disabled) .mdc-floating-label--float-above {
+          color: var(--mdc-theme-primary);
+        }
+      </style>
+
+      <div class="mdc-text-field">
+        <input
+          type="${this.type}"
+          id="my-text-field"
+          class="mdc-text-field__input"
+          value="${this.value}">
+        <label class="mdc-floating-label" for="my-text-field">${this.label}</label>
+        <div class="mdc-line-ripple"></div>
+      </div>
+    `
+  }
+}
+
+customElements.define('material-text-field', MaterialTextField)
+
+class MaterialCard extends LitElement {
+  render () {
+    return html`
+      <style>
+        @import "https://unpkg.com/@material/card/dist/mdc.card.min.css";
+        @import "static/shared.css";
+
+        .mdc-card {
+          padding: 16px;
+          background-color: var(--background-color, white);
+        }
+      </style>
+
+      <div class="mdc-card">
+        <slot></slot>
+      </div>
+    `
+  }
+}
+
+customElements.define('material-card', MaterialCard)
+
+class StoryElement extends LitElement {
+  static get properties () {
+    return {
+      story: { type: Object },
+      score: { type: Number }
+    }
+  }
+
+  render () {
+    const {story, score} = this
+    const saveLink = 'http://ficsave.com/?format=epub&e=&auto_download=yes&story_url=' + story.url
+
+    return html`
+      <style>
+        @import "static/shared.css";
+
+        :host {
+          display: block;
+          background-color: #fff;
+          line-height: 1.5rem;
+          padding: 10px 15px;
+          margin: 0;
+          border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stats {
+          color: rgba(0,0,0,0.5);
+          margin: 0;
+        }
+        .secondary-content {
+          float: right;
+        }
+      </style>
+      <a href="${story.url}" class="title">${story.title}</a>
+      ${(score ? (' - ' + score) : '')}
+      <span class="secondary-content">
+        <a href="${saveLink}">Download</a>,
+        <a href="#/story/${story.url}">Search</a>
+      </span>
+      <div>
+        ${story.desc}
+      </div>
+      <div class="stats">
+        Chapters: ${story.chapters} -
+        Reviews: ${story.reviews} -
+        Likes: ${story.likecount} -
+        Tags: ${(story.tags || []).join(', ')}
+      </div>
+    `
+  }
+}
+
+customElements.define('story-element', StoryElement)
+
+class OurgraphApp extends LitElement {
+  static get properties () {
+    return {
+      stories: { type: Array },
+      docs: { type: Array },
+      curOffset: { type: Number },
+      index: { type: Object },
+      url: { type: String },
+      filter: { type: String },
+      error: { type: String },
+      loading: { type: Boolean }
+    }
+  }
+
+  constructor () {
+    super()
+
+    this.filter = ''
+    this.url = ''
+    this.stories = []
+    this.goToPath(this.hashURL(), 0)
+
+    window.addEventListener('hashchange', () => {
+      this.goToPath(this.hashURL(), 0)
+    })
+  }
+
+  render () {
+    return html`
+      <style>
+        @import "static/shared.css";
+
+        :host {
+          --mdc-theme-primary: #039be5;
+        }
+
+        #stories {
+          --background-color: rgba(255,255,255,0.6);
+        }
+        .error {
+          color: red;
+        }
+        .header {
+          text-align: center;
+          margin: 80px 0 60px;
+          font-size: 5.5rem;
+          font-weight: 200;
+          text-shadow: 0 2px 5px rgba(0,0,0,0.16),0 2px 10px rgba(0,0,0,0.12);
+          color: white;
+        }
+
+        @media (max-width: 600px) {
+          .row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+          }
+          .header {
+            font-size: 3.5rem !important;
+          }
+        }
+        .small {
+          width: 680px;
+        }
+        .big {
+          width: 1024px;
+        }
+        .row {
+          margin: 16px;
+          display: flex;
+          justify-content: center;
+        }
+        material-card {
+          max-width: 100%;
+        }
+        h2 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 300;
+          display: block;
+          line-height: 32px;
+          margin-bottom: 8px;
+          color: rgba(0,0,0,0.8);
+        }
+        .collection {
+          border: 1px solid #e0e0e0;
+          border-bottom: none;
+          margin: 16px 0;
+        }
+        .row-space {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        material-progress {
+          margin-top: 16px;
+        }
+      </style>
+
+      <div id="container">
+        <div class="container">
+          <h1 class="header">Ourgraph</h1>
+          <div class="row">
+            <material-card class="small">
+              <h2>Recommend me something!</h2>
+              <p>
+              Ourgraph is a universal recommendation system for stories built on
+              our user data spanning across multiple silos.
+              </p>
+              <div class="input-field">
+                <material-text-field
+                  label="Story URL"
+                  type="url"
+                  @input="${this.urlChanged}"
+                  value="${this.url}">
+                </material-text-field>
+              </div>
+              <p>
+              For more focused results you can enter two URLs separated by a "|".
+              </p>
+              ${this.renderError()}
+              <center>
+                <material-button @click="${this.recommend}">
+                  Recommend
+                </material-button>
+              </center>
+              ${this.loading ? html`<material-progress></material-progress>` : null}
+            </material-card>
+          </div>
+
+          ${this.renderStories()}
+
+          <div class="row">
+            <material-card class="small">
+              <center>
+                <a href="https://github.com/d4l3k/ourgraph">
+                  <material-button>
+                    Source Code
+                  </material-button>
+                </a>
+              </center>
+              <p>Copyright (c) 2019 <a href="https://fn.lc">Tristan Rice</a>.
+              Licensed under the MIT license.</p>
+            </material-card>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  renderError () {
+    if (this.error) {
+      return html`
+        <p class="error">${this.error}</p>
+      `
+    }
+  }
+
+  urlChanged (e) {
+    this.url = e.originalTarget.value
+    if (e.which === 13) {
+      this.recommend()
+    }
+  }
+
+  filterChanged (e) {
+    this.filter = e.originalTarget.value
+  }
+
+  goToPath (path, offset) {
+    const prefix = '/story/'
+    if (path.indexOf(prefix) !== 0) {
       return
     }
-    show($progress)
 
-    fetch(endpoint + '?id=' + stationId + '&offset=' + offset)
+    this.url = path.substr(prefix.length)
+
+    if (!offset) {
+      this.stories = []
+      offset = 0
+      this.filter = ''
+      this.index = null
+    }
+
+    this.curOffset = offset
+
+    if (this.url.length === 0) {
+      return
+    }
+
+    this.loading = true
+
+    fetch(endpoint + '?id=' + this.url + '&offset=' + offset)
       .then(resp => {
         if (resp.ok) {
           return resp.json()
@@ -86,8 +379,9 @@ function goToPath (path, offset) {
         })
       })
       .then(data => {
-        stories = stories.concat(data.Recommendations)
-        index = lunr(function () {
+        this.stories = this.stories.concat(data.Recommendations)
+        const stories = this.stories
+        this.index = lunr(function () {
           this.ref('id')
           this.field('title')
           this.field('desc')
@@ -100,76 +394,108 @@ function goToPath (path, offset) {
           })
         })
 
-        const docHtml = data.Documents.map(v => storyElement(v)).join('\n')
-        document.querySelector('#input-col').innerHTML = docHtml
-        renderStories()
-        show(document.querySelector('#stories'))
+        this.data = data
       }).catch(err => {
         console.error(err)
-        $error.innerText = err
-        show($error)
+        this.error = err
       }).then(() => {
-        hide($progress)
+        this.loading = false
       })
   }
+
+  renderStories () {
+    if (this.stories.length === 0) {
+      return
+    }
+
+    const query = this.filter
+    let dispStories = []
+    if (query.length === 0) {
+      dispStories = this.stories
+    } else {
+      this.index.search(query).forEach(result => {
+        dispStories.push(this.stories[result.ref])
+      })
+    }
+    const out = []
+    console.log(dispStories)
+    dispStories.forEach(story => {
+      out.push(html`<story-element .story=${story.Document} .score=${story.Score}>`)
+    })
+
+    return html`
+      <div class="row">
+        <material-card class="big" id="stories">
+          <h2>Input</h2>
+          <div class="collection">
+            ${this.data.Documents.map(doc => html`<story-element .story=${doc}>`)}
+          </div>
+
+          <div class="row-space">
+            <h2>
+              Recommended Stories
+            </h2>
+            <material-text-field
+              label="Filter"
+              type="text"
+              @input="${this.filterChanged}"
+              value="${this.filter}">
+            </material-text-field>
+          </div>
+
+          <div class="collection">
+            ${out}
+          </div>
+          <center>
+            <material-button @click="${this.more}">
+              More Stories
+            </material-button>
+          </center>
+          ${this.loading ? html`<material-progress></material-progress>` : null}
+        </material-card>
+      </div>
+    `
+  }
+
+  hashURL () {
+    return window.location.hash.substr(1)
+  }
+
+  more () {
+    this.curOffset += 100
+    this.goToPath(this.hashURL(), this.curOffset)
+  }
+
+  recommend () {
+    const newPath = '/story/' + this.url
+    window.location.hash = '#' + newPath
+    this.goToPath(newPath)
+  }
+}
+
+customElements.define('ourgraph-app', OurgraphApp)
+
+{
+  const background = document.getElementById('background')
+
+  function renderBackground () {
+    const pattern = Trianglify({
+      width: window.innerWidth,
+      height: window.innerHeight
+    })
+    pattern.canvas(background)
+  }
+
+  let timeout
+  window.addEventListener('resize', function () {
+    clearTimeout(timeout)
+    timeout = setTimeout(function () {
+      renderBackground()
+    }, 300)
+  })
+  window.addEventListener('hashchange', function () {
+    renderBackground()
+  })
+
   renderBackground()
 }
-
-function renderStories () {
-  var $filter = document.querySelector('#filter')
-  var query = $filter.value.trim()
-  var dispStories = []
-  if (query.length === 0) {
-    dispStories = stories
-  } else {
-    var searchResults = index.search(query)
-    _.each(searchResults, function (result) {
-      dispStories.push(stories[result.ref])
-    })
-  }
-  var html = ''
-  _.each(dispStories, function (story) {
-    html += storyElement(story.Document, story.Score)
-  })
-  document.querySelector('#stories-col').innerHTML = html
-}
-
-document.querySelector('#filter').addEventListener('keydown', _.debounce(renderStories, 300))
-
-function more () {
-  curOffset += 100
-  goToPath(window.location.hash.substr(1), curOffset)
-}
-
-function recommend () {
-  var val = document.querySelector('#url').value
-  var newPath = '/story/' + val
-  window.location.hash = '#' + newPath
-  goToPath(newPath)
-}
-
-document.querySelector('#rec').addEventListener('click', recommend)
-
-var timeout
-window.addEventListener('resize', function () {
-  clearTimeout(timeout)
-  timeout = setTimeout(function () {
-    renderBackground()
-  }, 300)
-})
-
-document.querySelector('#more').addEventListener('click', function () {
-  more()
-})
-
-document.querySelector('#url').addEventListener('keypress', function (e) {
-  if (e.which === 13) {
-    recommend()
-  }
-})
-
-window.addEventListener('hashchange', function (e) {
-  goToPath(window.location.hash.substr(1))
-})
-
-goToPath(window.location.hash.substr(1))
