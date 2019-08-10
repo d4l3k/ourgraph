@@ -1,0 +1,8 @@
+a {
+  color: var(--link-color, #039be5);
+  text-decoration: none;
+}
+
+* {
+  font-family: 'Inter' !important;
+}
