@@ -24,6 +24,9 @@ var (
 	dgraphAddr = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
 )
 
+// Average user rating for a document out of 5.
+const avgRating = 4
+
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "ui/static/index.html")
 }
@@ -191,9 +194,10 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 			resp, err := txn.QueryWithVars(ctx,
 				`query recs($url: string, $offset: int) {
 				recs(func: eq(url, $url)) @ignorereflex {
-					~likes (first: 1000, offset: $offset) {
-						likes {
+					~likes (first: 1000, offset: $offset) @facets(rating) {
+						likes @facets(rating) {
 							uid
+							url
 						}
 					}
 				}
@@ -220,12 +224,28 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 
 			for _, origDoc := range results.Recs {
 				for _, user := range origDoc.Likes {
+					userRating := float32(1.0)
+					if user.LikesRating != 0 {
+						userRating = float32(user.LikesRating) / avgRating
+					}
+
 					for _, doc := range user.Likes {
-						if doc.Uid == "" {
-							return response{}, errors.Errorf("invalid uid for doc %+v", doc)
+						// Work around @ignorereflex @facets bug in dgraph.
+						if doc.Uid == "" && doc.LikesRating != 0 {
+							continue
 						}
+
+						if doc.Uid == "" {
+							return response{}, errors.Errorf("invalid uid for doc %+v: %s", doc, resp.Json)
+						}
+
+						docRating := float32(1.0)
+						if doc.LikesRating != 0 {
+							docRating = float32(doc.LikesRating) / avgRating
+						}
+
 						rec := recs[doc.Uid]
-						rec.Score += 1.0
+						rec.Score += userRating * docRating
 						rec.Document = doc
 						recs[doc.Uid] = rec
 					}
