@@ -21,12 +21,16 @@ import (
 )
 
 func init() {
-	addScraper(&FFNetScraper{})
+	addScraper(&FFNetScraper{domain: "www.fanfiction.net"})
 }
 
 type FFNetScraper struct {
 	domain string
 	count  int
+}
+
+func (s FFNetScraper) Domain() string {
+	return s.domain
 }
 
 func (s FFNetScraper) userExists(id int) (bool, error) {
@@ -80,17 +84,16 @@ func (s FFNetScraper) userCount() (int, error) {
 }
 
 func (s *FFNetScraper) Scrape(ctx context.Context, c Consumer) error {
-	s.domain = "www.fanfiction.net"
 	count, err := s.userCount()
 	if err != nil {
 		return err
 	}
 	s.count = count
 	log.Printf("user count %q = %d", s.domain, s.count)
-	return s.scrapeFFGroup(c)
+	return s.scrapeFFGroup(ctx, c)
 }
 
-func (s FFNetScraper) scrapeFFGroup(c Consumer) error {
+func (s FFNetScraper) scrapeFFGroup(ctx context.Context, c Consumer) error {
 	// Launch goroutines to fetch documents
 	p := NewHttpWorkerPool(1000, ratelimit.New(7))
 
@@ -98,7 +101,7 @@ func (s FFNetScraper) scrapeFFGroup(c Consumer) error {
 	go func() {
 		defer p.Close()
 
-		for {
+		for ctx.Err() != nil {
 			url := fmt.Sprintf("https://%s/u/%d", s.domain, rand.Intn(s.count))
 			p.Schedule(url)
 		}
@@ -218,7 +221,7 @@ func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
 				return schema.User{}, errors.Errorf("not enough matches %+v in %q", matches, meta)
 			}
 			st.Tags = append(st.Tags, schema.MakeSlug(matches[1]))
-			genreIdx := -1
+			var genreIdx int
 			if len(matches) > 3 {
 				st.Tags = append(st.Tags, schema.MakeSlug(matches[2]))
 				genreIdx = 3
@@ -242,10 +245,6 @@ func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
 		}
 	}
 	u.Likes = stories
-
-	if len(u.Likes) == 0 {
-		return schema.User{}, errors.Errorf("user has no likes %q", u.Username)
-	}
 
 	return u, nil
 }

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/d4l3k/ourgraph/schema"
@@ -18,7 +19,8 @@ import (
 )
 
 var (
-	dgraphAddr = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
+	dgraphAddr   = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
+	scrapeFilter = flag.String("scrapefilter", "", "scrape only matching domains")
 )
 
 func main() {
@@ -65,8 +67,13 @@ func (s *Server) Run(ctx context.Context) error {
 
 	group, ctx := errgroup.WithContext(ctx)
 	for _, s := range scrapers.Scrapers() {
+		if !strings.Contains(s.Domain(), *scrapeFilter) {
+			continue
+		}
+		log.Printf("launching scraper for %q", s.Domain())
 		s := s
 		group.Go(func() error {
+			defer log.Printf("Scraper done %q", s.Domain())
 			return s.Scrape(ctx, c)
 		})
 	}
@@ -225,6 +232,10 @@ func (s *Server) uploadDocument(ctx context.Context, doc schema.Document) error 
 }
 
 func (s *Server) uploadUser(ctx context.Context, user schema.User) error {
+	if len(user.Likes) == 0 {
+		return errors.Errorf("user has no likes %q", user.Username)
+	}
+
 	txn := s.dgo.NewTxn()
 	if err := s.populateUidsUser(ctx, txn, &user); err != nil {
 		return err

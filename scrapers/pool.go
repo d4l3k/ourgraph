@@ -53,7 +53,7 @@ func (p *HttpWorkerPool) Output() <-chan *goquery.Document {
 // scheduled schedule will block.
 // Not thread safe.
 func (p *HttpWorkerPool) Schedule(url string) {
-	time.Sleep(time.Now().Sub(p.limiter.Take()))
+	p.limiter.Take()
 	p.jobs <- url
 }
 

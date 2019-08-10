@@ -33,5 +33,6 @@ type Consumer struct {
 }
 
 type Scraper interface {
+	Domain() string
 	Scrape(ctx context.Context, c Consumer) error
 }
