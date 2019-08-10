@@ -1,11 +1,12 @@
 package schema
 
 type User struct {
-	Uid      string     `json:"uid,omitempty"`
-	Username string     `json:"username,omitempty"`
-	Name     string     `json:"name,omitempty"`
-	Urls     []string   `json:"urls,omitempty"`
-	Likes    []Document `json:"likes,omitempty"`
+	Uid         string     `json:"uid,omitempty"`
+	Username    string     `json:"username,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	Urls        []string   `json:"urls,omitempty"`
+	Likes       []Document `json:"likes,omitempty"`
+	LikesRating int        `json:"~likes|rating,omitempty"`
 }
 
 type Document struct {
