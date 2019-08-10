@@ -201,6 +201,10 @@ func (s GoodreadsScraper) fetchUser(ctx context.Context, id int) (schema.User, e
 		return schema.User{}, errors.Wrapf(err, "getOG")
 	}
 
+	if og.Profile == nil {
+		return schema.User{}, errors.Errorf("missing profile metadata for user %q", profileURL)
+	}
+
 	u := schema.User{
 		Name: strings.TrimSpace(og.Profile.FirstName + " " + og.Profile.LastName),
 		Urls: []string{profileURL},
