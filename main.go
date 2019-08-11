@@ -104,35 +104,11 @@ func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schem
 	if uid, ok := s.usernameCache[user.Username]; ok {
 		user.Uid = uid
 	} else {
-		resp, err := txn.QueryWithVars(
-			ctx,
-			`query useruid($username: string) {
-				users(func: eq(username, $username)) {
-					uid
-				}
-			}`,
-			map[string]string{"$username": user.Username},
-		)
+		uid, err := s.getUserUid(ctx, txn, user.Username)
 		if err != nil {
 			return err
 		}
-		results := struct {
-			Users []struct {
-				Uid string `json:"uid"`
-			} `json:"users"`
-		}{}
-		if err := json.Unmarshal(resp.Json, &results); err != nil {
-			return err
-		}
-		if len(results.Users) > 1 {
-			return errors.Errorf("too many users %q: %s", user.Username, resp.Json)
-		}
-		if len(results.Users) > 0 {
-			user.Uid = results.Users[0].Uid
-			if len(user.Uid) == 0 {
-				return errors.Errorf("returned uid invalid! %q", user.Username)
-			}
-		}
+		user.Uid = uid
 	}
 
 	for i := range user.Likes {
@@ -142,6 +118,97 @@ func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schem
 	}
 
 	return nil
+}
+
+func (s *Server) getUserUid(ctx context.Context, txn *dgo.Txn, username string) (string, error) {
+	if len(username) == 0 {
+		return "", errors.Errorf("empty username")
+	}
+	resp, err := txn.QueryWithVars(
+		ctx,
+		`query useruid($username: string) {
+				users(func: eq(username, $username)) {
+					uid
+				}
+			}`,
+		map[string]string{"$username": username},
+	)
+	if err != nil {
+		return "", err
+	}
+	var results struct {
+		Users []schema.User `json:"users"`
+	}
+	if err := json.Unmarshal(resp.Json, &results); err != nil {
+		return "", err
+	}
+	if len(results.Users) > 1 {
+		toDelete := results.Users[1:]
+		log.Printf("deleting users %+v", toDelete)
+		deleteJson, err := json.Marshal(toDelete)
+		if err != nil {
+			return "", err
+		}
+		if _, err := txn.Mutate(ctx, &api.Mutation{
+			DeleteJson: deleteJson,
+		}); err != nil {
+			return "", err
+		}
+	}
+	if len(results.Users) == 0 {
+		return "", nil
+	}
+	uid := results.Users[0].Uid
+	if len(uid) == 0 {
+		return "", errors.Errorf("returned uid invalid! %q", username)
+	}
+	return uid, nil
+}
+
+func (s *Server) getDocUid(ctx context.Context, txn *dgo.Txn, url string) (string, error) {
+	if len(url) == 0 {
+		return "", errors.Errorf("empty url")
+	}
+	resp, err := txn.QueryWithVars(
+		ctx,
+		`query docuid($url: string) {
+				docs(func: eq(url, $url)) {
+					uid
+				}
+			}`,
+		map[string]string{"$url": url},
+	)
+	if err != nil {
+		return "", err
+	}
+	var results struct {
+		Docs []schema.Document `json:"docs"`
+	}
+	if err := json.Unmarshal(resp.Json, &results); err != nil {
+		return "", err
+	}
+	// if there are too many docs delete all the extras
+	if len(results.Docs) > 1 {
+		toDelete := results.Docs[1:]
+		log.Printf("deleting docs %+v", toDelete)
+		deleteJson, err := json.Marshal(toDelete)
+		if err != nil {
+			return "", err
+		}
+		if _, err := txn.Mutate(ctx, &api.Mutation{
+			DeleteJson: deleteJson,
+		}); err != nil {
+			return "", err
+		}
+	}
+	if len(results.Docs) == 0 {
+		return "", nil
+	}
+	uid := results.Docs[0].Uid
+	if len(uid) == 0 {
+		return "", errors.Errorf("returned uid invalid! %q", url)
+	}
+	return uid, nil
 }
 
 func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *schema.Document) error {
@@ -158,35 +225,11 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 	if uid, ok := s.urlCache[doc.Url]; ok {
 		doc.Uid = uid
 	} else {
-		resp, err := txn.QueryWithVars(
-			ctx,
-			`query docuid($url: string) {
-				docs(func: eq(url, $url)) {
-					uid
-				}
-			}`,
-			map[string]string{"$url": doc.Url},
-		)
+		uid, err := s.getDocUid(ctx, txn, doc.Url)
 		if err != nil {
 			return err
 		}
-		results := struct {
-			Docs []struct {
-				Uid string `json:"uid"`
-			} `json:"docs"`
-		}{}
-		if err := json.Unmarshal(resp.Json, &results); err != nil {
-			return err
-		}
-		if len(results.Docs) > 1 {
-			return errors.Errorf("too many docs %q", doc.Url)
-		}
-		if len(results.Docs) > 0 {
-			doc.Uid = results.Docs[0].Uid
-			if len(doc.Uid) == 0 {
-				return errors.Errorf("returned uid invalid! %q", doc.Url)
-			}
-		}
+		doc.Uid = uid
 	}
 
 	for i := range doc.Likes {
