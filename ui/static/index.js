@@ -1,4 +1,4 @@
-/* global _, Trianglify, lunr, customElements, fetch */
+/* global _, Trianglify, lunr, customElements, fetch, Math */
 'use strict'
 
 import 'https://unpkg.com/@webcomponents/webcomponentsjs/webcomponents-loader.js?module'
@@ -34,7 +34,7 @@ customElements.define('material-button', MaterialButton)
 
 class MaterialProgress extends LitElement {
   firstUpdated () {
-    this.mdc = new MDCRipple(this.shadowRoot.querySelector('.mdc-linear-progress'))
+    this.mdc = new MDCLinearProgress(this.shadowRoot.querySelector('.mdc-linear-progress'))
   }
 
   render () {
@@ -132,6 +132,11 @@ class StoryElement extends LitElement {
     }
   }
 
+  roundTo (n, places) {
+    const factor = 10 ** places
+    return Math.round(n * factor) / factor
+  }
+
   render () {
     const {story, score} = this
     const saveLink = 'http://ficsave.com/?format=epub&e=&auto_download=yes&story_url=' + story.url
@@ -158,7 +163,7 @@ class StoryElement extends LitElement {
         }
       </style>
       <a href="${story.url}" class="title">${story.title}</a>
-      ${(score ? (' - ' + score) : '')}
+      ${(score ? (' - ' + this.roundTo(score, 2)) : '')}
       <span class="secondary-content">
         <a href="${saveLink}">Download</a>,
         <a href="#/story/${story.url}">Search</a>
