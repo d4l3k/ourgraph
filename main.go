@@ -77,7 +77,11 @@ func (s *Server) Run(ctx context.Context) error {
 		s := s
 		group.Go(func() error {
 			defer log.Printf("Scraper done %q", s.Domain())
-			return s.Scrape(ctx, c)
+			if err := s.Scrape(ctx, c); err != nil {
+				log.Printf("scraper error %q: %+v", s.Domain(), err)
+				return err
+			}
+			return nil
 		})
 	}
 	return group.Wait()
@@ -89,8 +93,6 @@ func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan s
 			log.Printf("failed to upload %+v", err)
 		}
 	}
-	close(docs)
-	close(users)
 	return nil
 }
 

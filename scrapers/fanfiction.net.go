@@ -22,6 +22,7 @@ import (
 
 func init() {
 	addScraper(&FFNetScraper{domain: "www.fanfiction.net"})
+	addScraper(&FFNetScraper{domain: "www.fictionpress.com"})
 }
 
 type FFNetScraper struct {
@@ -95,21 +96,25 @@ func (s *FFNetScraper) Scrape(ctx context.Context, c Consumer) error {
 
 func (s FFNetScraper) scrapeFFGroup(ctx context.Context, c Consumer) error {
 	// Launch goroutines to fetch documents
-	p := NewHttpWorkerPool(1000, ratelimit.New(7))
+	p := NewHttpWorkerPool(ctx, 1000, ratelimit.New(7))
 
 	// Creates jobs
 	go func() {
 		defer p.Close()
 
-		for ctx.Err() != nil {
+		for ctx.Err() == nil {
 			url := fmt.Sprintf("https://%s/u/%d", s.domain, rand.Intn(s.count))
-			p.Schedule(url)
+			p.Schedule(ctx, url)
 		}
 	}()
 
 	// Handle fetched documents
 	fetched := 0
 	for doc := range p.Output() {
+		if ctx.Err() != nil {
+			break
+		}
+
 		user, err := s.docToUser(doc)
 		if err != nil {
 			log.Println(errors.Wrapf(err, "error processing document (url=%s)", doc.Url.String()))
