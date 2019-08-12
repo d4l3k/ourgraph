@@ -63,9 +63,12 @@ func (s *Server) Run(ctx context.Context) error {
 		Documents: docs,
 	}
 
-	go s.upload(ctx, users, docs)
-
 	group, ctx := errgroup.WithContext(ctx)
+
+	group.Go(func() error {
+		return s.upload(ctx, users, docs)
+	})
+
 	for _, s := range scrapers.Scrapers() {
 		if !strings.Contains(s.Domain(), *scrapeFilter) {
 			continue
@@ -80,7 +83,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return group.Wait()
 }
 
-func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan schema.Document) {
+func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan schema.Document) error {
 	for ctx.Err() == nil {
 		if err := s.uploadSingle(ctx, users, docs); err != nil {
 			log.Printf("failed to upload %+v", err)
@@ -88,6 +91,7 @@ func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan s
 	}
 	close(docs)
 	close(users)
+	return nil
 }
 
 func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schema.User) error {
