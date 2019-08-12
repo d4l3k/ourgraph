@@ -247,6 +247,10 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 func (s *Server) uploadSingle(
 	ctx context.Context, users chan schema.User, docs chan schema.Document,
 ) error {
+	if len(docs) == cap(docs) || len(users) == cap(users) {
+		log.Printf("uploader overloaded!")
+	}
+
 	select {
 	case <-ctx.Done():
 		return nil
