@@ -112,8 +112,9 @@ func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schem
 	}
 
 	for i := range user.Likes {
-		if err := s.populateUidsDocument(ctx, txn, &user.Likes[i]); err != nil {
-			return err
+		doc := &user.Likes[i]
+		if err := s.populateUidsDocument(ctx, txn, doc); err != nil {
+			return errors.Wrapf(err, "doc %+v", doc)
 		}
 	}
 
@@ -218,9 +219,6 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 	if len(doc.Name) == 0 {
 		return errors.Errorf("document missing name")
 	}
-	if len(doc.Desc) == 0 {
-		return errors.Errorf("document missing description")
-	}
 
 	if uid, ok := s.urlCache[doc.Url]; ok {
 		doc.Uid = uid
@@ -233,8 +231,9 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 	}
 
 	for i := range doc.Likes {
-		if err := s.populateUidsUser(ctx, txn, &doc.Likes[i]); err != nil {
-			return err
+		user := &doc.Likes[i]
+		if err := s.populateUidsUser(ctx, txn, user); err != nil {
+			return errors.Wrapf(err, "user %+v", user)
 		}
 	}
 
@@ -276,7 +275,7 @@ func (s *Server) uploadDocument(ctx context.Context, doc schema.Document) error 
 
 func (s *Server) uploadUser(ctx context.Context, user schema.User) error {
 	if len(user.Likes) == 0 {
-		return errors.Errorf("user has no likes %q", user.Username)
+		return errors.Errorf("user has no likes %q %+v", user.Username, user.Urls)
 	}
 
 	txn := s.dgo.NewTxn()
