@@ -325,20 +325,26 @@ func (s GoodreadsScraper) fetchUser(ctx context.Context, id int) (schema.User, e
 		return schema.User{}, errors.Wrapf(err, "getOG")
 	}
 
-	if og.Profile == nil {
-		return schema.User{}, errors.Errorf("missing profile metadata for user %q", profileURL)
-	}
-
 	u := schema.User{
-		Name: strings.TrimSpace(og.Profile.FirstName + " " + og.Profile.LastName),
 		Urls: []string{profileURL},
 	}
 
-	username := og.Profile.Username
-	if len(username) == 0 {
-		username = fmt.Sprintf("%d-%s", id, u.Name)
+	if og.Type == "profile" {
+		if og.Profile == nil {
+			return schema.User{}, errors.Errorf("missing profile metadata for user %q", profileURL)
+		}
+		u.Name = strings.TrimSpace(og.Profile.FirstName + " " + og.Profile.LastName)
+		u.Username = og.Profile.Username
+	} else if og.Type == "books.author" {
+		u.Name = og.Title
+	} else {
+		return schema.User{}, errors.Errorf("unknown page type %q", og.Type)
 	}
-	u.Username = schema.MakeSlug(username)
+
+	if len(u.Username) == 0 {
+		u.Username = fmt.Sprintf("%d-%s", id, u.Name)
+	}
+	u.Username = schema.MakeSlug(u.Username)
 
 	for _, item := range feed.Channel.Items {
 		var d schema.Document
