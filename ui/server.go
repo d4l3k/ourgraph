@@ -190,12 +190,11 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 	// Fetch recommendations
 	recs := map[string]recommendation{}
 	for _, url := range urls {
-		for offset := 0; offset < 1000000; offset += 1000 {
-			resp, err := txn.QueryWithVars(ctx,
-				`query recs($url: string, $offset: int) {
+		resp, err := txn.QueryWithVars(ctx,
+			`query recs($url: string) {
 				recs(func: eq(url, $url)) @ignorereflex {
-					~likes (first: 1000, offset: $offset) @facets(rating) {
-						likes @facets(rating) {
+					~likes (first: 1000) @facets(rating) {
+						likes(first: 1000) @facets(rating) {
 							uid
 							url
 						}
@@ -203,52 +202,50 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 				}
 			}
 		`,
-				map[string]string{
-					"$url":    url,
-					"$offset": strconv.Itoa(offset),
-				},
-			)
-			if err != nil {
-				return response{}, err
-			}
-			results := struct {
-				Recs []schema.Document `json:"recs"`
-			}{}
-			if err := json.Unmarshal(resp.Json, &results); err != nil {
-				return response{}, err
-			}
+			map[string]string{
+				"$url": url,
+			},
+		)
+		if err != nil {
+			return response{}, err
+		}
+		results := struct {
+			Recs []schema.Document `json:"recs"`
+		}{}
+		if err := json.Unmarshal(resp.Json, &results); err != nil {
+			return response{}, err
+		}
 
-			if len(results.Recs) == 0 {
-				break
-			}
+		if len(results.Recs) == 0 {
+			break
+		}
 
-			for _, origDoc := range results.Recs {
-				for _, user := range origDoc.Likes {
-					userRating := float32(1.0)
-					if user.LikesRating != 0 {
-						userRating = float32(user.LikesRating) / avgRating
+		for _, origDoc := range results.Recs {
+			for _, user := range origDoc.Likes {
+				userRating := float32(1.0)
+				if user.LikesRating != 0 {
+					userRating = float32(user.LikesRating) / avgRating
+				}
+
+				for _, doc := range user.Likes {
+					// Work around @ignorereflex @facets bug in dgraph.
+					if doc.Uid == "" && doc.LikesRating != 0 {
+						continue
 					}
 
-					for _, doc := range user.Likes {
-						// Work around @ignorereflex @facets bug in dgraph.
-						if doc.Uid == "" && doc.LikesRating != 0 {
-							continue
-						}
-
-						if doc.Uid == "" {
-							return response{}, errors.Errorf("invalid uid for doc %+v: %s", doc, resp.Json)
-						}
-
-						docRating := float32(1.0)
-						if doc.LikesRating != 0 {
-							docRating = float32(doc.LikesRating) / avgRating
-						}
-
-						rec := recs[doc.Uid]
-						rec.Score += userRating * docRating
-						rec.Document = doc
-						recs[doc.Uid] = rec
+					if doc.Uid == "" {
+						return response{}, errors.Errorf("invalid uid for doc %+v: %s", doc, resp.Json)
 					}
+
+					docRating := float32(1.0)
+					if doc.LikesRating != 0 {
+						docRating = float32(doc.LikesRating) / avgRating
+					}
+
+					rec := recs[doc.Uid]
+					rec.Score += userRating * docRating
+					rec.Document = doc
+					recs[doc.Uid] = rec
 				}
 			}
 		}

@@ -175,7 +175,7 @@ class StoryElement extends LitElement {
         Chapters: ${story.chapters} -
         Reviews: ${story.reviews} -
         Likes: ${story.likecount} -
-        Tags: ${(story.tags || []).join(', ')}
+        Tags: ${(story.tags || []).slice(0, 25).join(', ')}
       </div>
     `
   }
