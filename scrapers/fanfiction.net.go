@@ -96,7 +96,7 @@ func (s *FFNetScraper) Scrape(ctx context.Context, c Consumer) error {
 
 func (s FFNetScraper) scrapeFFGroup(ctx context.Context, c Consumer) error {
 	// Launch goroutines to fetch documents
-	p := NewHttpWorkerPool(ctx, 1000, ratelimit.New(7))
+	p := NewHttpWorkerPool(ctx, 100, ratelimit.New(5))
 
 	// Creates jobs
 	go func() {
@@ -109,7 +109,6 @@ func (s FFNetScraper) scrapeFFGroup(ctx context.Context, c Consumer) error {
 	}()
 
 	// Handle fetched documents
-	fetched := 0
 	for doc := range p.Output() {
 		if ctx.Err() != nil {
 			break
@@ -120,12 +119,11 @@ func (s FFNetScraper) scrapeFFGroup(ctx context.Context, c Consumer) error {
 			log.Println(errors.Wrapf(err, "error processing document (url=%s)", doc.Url.String()))
 			continue
 		}
+		if len(user.Name) == 0 {
+			continue
+		}
 		c.Users <- user
 
-		if fetched%100 == 0 {
-			log.Printf("Fetched %s %d %q", s.domain, fetched, user.Username)
-		}
-		fetched++
 	}
 	return nil
 }
@@ -184,9 +182,6 @@ func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
 	u := schema.User{}
 	contentSpans := doc.Find("#content_wrapper_inner span")
 	u.Name = strings.TrimSpace(contentSpans.First().Text())
-	if len(u.Name) == 0 {
-		return schema.User{}, errors.Errorf("missing name")
-	}
 	u.Username = schema.MakeSlug(u.Name)
 	u.Urls = []string{
 		doc.Url.String(),

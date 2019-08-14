@@ -6,7 +6,9 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/d4l3k/ourgraph/schema"
@@ -40,13 +42,20 @@ type Server struct {
 	dc  api.DgraphClient
 	dgo *dgo.Dgraph
 
-	usernameCache map[string]string
-	urlCache      map[string]string
+	mu struct {
+		sync.Mutex
+
+		usernameCache map[string]string
+		urlCache      map[string]string
+
+		domainAdded map[string]int
+	}
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	s.usernameCache = map[string]string{}
-	s.urlCache = map[string]string{}
+	s.mu.usernameCache = map[string]string{}
+	s.mu.urlCache = map[string]string{}
+	s.mu.domainAdded = map[string]int{}
 
 	conn, err := grpc.Dial(*dgraphAddr, grpc.WithInsecure())
 	if err != nil {
@@ -66,8 +75,25 @@ func (s *Server) Run(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
-		return s.upload(ctx, users, docs)
+		ticker := time.NewTicker(10 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+
+			case <-ticker.C:
+				s.mu.Lock()
+				log.Printf("Stats %+v", s.mu.domainAdded)
+				s.mu.Unlock()
+			}
+		}
 	})
+
+	for i := 0; i < 16; i++ {
+		group.Go(func() error {
+			return s.upload(ctx, users, docs)
+		})
+	}
 
 	for _, s := range scrapers.Scrapers() {
 		if !strings.Contains(s.Domain(), *scrapeFilter) {
@@ -96,6 +122,17 @@ func (s *Server) upload(ctx context.Context, users chan schema.User, docs chan s
 	return nil
 }
 
+func (s *Server) logDomain(urlStr string) error {
+	parsed, err := url.Parse(urlStr)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.mu.domainAdded[parsed.Host] += 1
+	s.mu.Unlock()
+	return nil
+}
+
 func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schema.User) error {
 	if len(user.Username) == 0 {
 		return errors.Errorf("invalid username %q", user.Username)
@@ -107,7 +144,11 @@ func (s *Server) populateUidsUser(ctx context.Context, txn *dgo.Txn, user *schem
 		return errors.Errorf("user missing name")
 	}
 
-	if uid, ok := s.usernameCache[user.Username]; ok {
+	s.mu.Lock()
+	uid, ok := s.mu.usernameCache[user.Username]
+	s.mu.Unlock()
+
+	if ok {
 		user.Uid = uid
 	} else {
 		uid, err := s.getUserUid(ctx, txn, user.Username)
@@ -151,7 +192,12 @@ func (s *Server) getUserUid(ctx context.Context, txn *dgo.Txn, username string) 
 	}
 	if len(results.Users) > 1 {
 		toDelete := results.Users[1:]
-		log.Printf("deleting users %+v", toDelete)
+
+		s.mu.Lock()
+		s.mu.usernameCache = map[string]string{}
+		s.mu.Unlock()
+
+		//log.Printf("deleting users %+v", toDelete)
 		deleteJson, err := json.Marshal(toDelete)
 		if err != nil {
 			return "", err
@@ -197,6 +243,11 @@ func (s *Server) getDocUid(ctx context.Context, txn *dgo.Txn, url string) (strin
 	// if there are too many docs delete all the extras
 	if len(results.Docs) > 1 {
 		toDelete := results.Docs[1:]
+
+		s.mu.Lock()
+		s.mu.urlCache = map[string]string{}
+		s.mu.Unlock()
+
 		log.Printf("deleting docs %+v", toDelete)
 		deleteJson, err := json.Marshal(toDelete)
 		if err != nil {
@@ -226,7 +277,11 @@ func (s *Server) populateUidsDocument(ctx context.Context, txn *dgo.Txn, doc *sc
 		return errors.Errorf("document missing name")
 	}
 
-	if uid, ok := s.urlCache[doc.Url]; ok {
+	s.mu.Lock()
+	uid, ok := s.mu.urlCache[doc.Url]
+	s.mu.Unlock()
+
+	if ok {
 		doc.Uid = uid
 	} else {
 		uid, err := s.getDocUid(ctx, txn, doc.Url)
@@ -279,13 +334,22 @@ func (s *Server) uploadDocument(ctx context.Context, doc schema.Document) error 
 	if !ok || len(uid) == 0 {
 		return errors.Errorf("didn't return UID")
 	}
-	s.urlCache[doc.Url] = uid
+
+	s.mu.Lock()
+	s.mu.urlCache[doc.Url] = uid
+	s.mu.Unlock()
+
+	if err := s.logDomain(doc.Url); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (s *Server) uploadUser(ctx context.Context, user schema.User) error {
 	if len(user.Likes) == 0 {
-		return errors.Errorf("user has no likes %q %+v", user.Username, user.Urls)
+		//return errors.Errorf("user has no likes %q %+v", user.Username, user.Urls)
+		return nil
 	}
 
 	txn := s.dgo.NewTxn()
@@ -301,7 +365,17 @@ func (s *Server) uploadUser(ctx context.Context, user schema.User) error {
 	if !ok || len(uid) == 0 {
 		return errors.Errorf("didn't return UID")
 	}
-	s.usernameCache[user.Username] = uid
+
+	s.mu.Lock()
+	s.mu.usernameCache[user.Username] = uid
+	s.mu.Unlock()
+
+	for _, url := range user.Urls {
+		if err := s.logDomain(url); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
