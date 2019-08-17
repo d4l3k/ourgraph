@@ -6,6 +6,7 @@ import {LitElement, html} from 'https://unpkg.com/@polymer/lit-element?module'
 import {MDCTextField} from 'https://unpkg.com/@material/textfield?module'
 import {MDCRipple} from 'https://unpkg.com/@material/ripple?module'
 import {MDCLinearProgress} from 'https://unpkg.com/@material/linear-progress?module'
+import 'https://unpkg.com/sanitize-html@1.20.1/dist/sanitize-html.min.js?module'
 
 let endpoint = 'api/v1/recommendation'
 // If '?prod' is appended to URL, point to prod.
@@ -31,6 +32,23 @@ class MaterialButton extends LitElement {
 }
 
 customElements.define('material-button', MaterialButton)
+
+class SafeHTML extends LitElement {
+  static get properties () {
+    return {
+      html: { type: String }
+    }
+  }
+
+  render () {
+    return html`
+      <div .innerHTML="${sanitizeHtml(this.html)}">
+      </div>
+    `
+  }
+}
+
+customElements.define('safe-html', SafeHTML)
 
 class MaterialProgress extends LitElement {
   firstUpdated () {
@@ -169,7 +187,7 @@ class StoryElement extends LitElement {
         <a href="#/story/${story.url}">Search</a>
       </span>
       <div>
-        ${story.desc}
+        <safe-html .html="${story.desc}"></safe-html>
       </div>
       <div class="stats">
         Chapters: ${story.chapters} -
