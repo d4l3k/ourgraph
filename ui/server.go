@@ -150,6 +150,8 @@ func getDocsByUIDs(ctx context.Context, txn *dgo.Txn, uids []string) ([]schema.D
 					complete
 					reviews
 					likecount
+					isbn
+					image
 				}
 			}`,
 			strings.Join(uids, ","),

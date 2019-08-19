@@ -180,8 +180,11 @@ class StoryElement extends LitElement {
           float: right;
         }
       </style>
-      <a href="${story.url}" class="title">${story.title}</a>
-      ${(score ? (' - ' + this.roundTo(score, 2)) : '')}
+      <a href="${story.url}" class="title">
+        ${story.title}
+        ${story.author ? ' by ' + story.author : ''}
+      </a>
+      ${score ? (' - ' + this.roundTo(score, 2)) : ''}
       <span class="secondary-content">
         <a href="${saveLink}">Download</a>,
         <a href="#/story/${story.url}">Search</a>
@@ -403,6 +406,8 @@ class OurgraphApp extends LitElement {
         })
       })
       .then(data => {
+        console.log(data)
+
         this.stories = this.stories.concat(data.Recommendations)
         const stories = this.stories
         this.index = lunr(function () {
@@ -444,7 +449,6 @@ class OurgraphApp extends LitElement {
       })
     }
     const out = []
-    console.log(dispStories)
     dispStories.forEach(story => {
       out.push(html`<story-element .story=${story.Document} .score=${story.Score}>`)
     })

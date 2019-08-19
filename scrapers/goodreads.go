@@ -380,9 +380,6 @@ func (s GoodreadsScraper) fetchUser(ctx context.Context, id int) (schema.User, e
 		d.LikesRating = item.UserRating
 		d.Image = item.BookImageUrl
 		d.ISBN = item.ISBN
-		if len(d.ISBN) == 0 {
-			return schema.User{}, errors.Errorf("missing isbn")
-		}
 
 		u.Likes = append(u.Likes, d)
 	}
