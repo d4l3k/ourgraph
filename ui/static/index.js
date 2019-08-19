@@ -420,6 +420,7 @@ class OurgraphApp extends LitElement {
         })
 
         this.data = data
+        this.error = null
       }).catch(err => {
         console.error(err)
         this.error = err
