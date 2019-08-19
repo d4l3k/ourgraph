@@ -280,6 +280,8 @@ type goodreadsXML struct {
 		Title string `xml:"title"`
 		Items []struct {
 			Title        string `xml:"title"`
+			AuthorName   string `xml:"author_name"`
+			ISBN         string `xml:"isbn"`
 			BookId       int    `xml:"book_id"`
 			BookImageUrl string `xml:"book_image_url"`
 			BookDesc     string `xml:"book_description"`
@@ -364,6 +366,11 @@ func (s GoodreadsScraper) fetchUser(ctx context.Context, id int) (schema.User, e
 	for _, item := range feed.Channel.Items {
 		var d schema.Document
 		d.Name = item.Title
+		d.Author = item.AuthorName
+		if len(d.Author) == 0 {
+			return schema.User{}, errors.Errorf("missing author")
+		}
+
 		d.Desc = item.BookDesc
 		if item.BookId == 0 {
 			return schema.User{}, errors.Errorf("invalid book id")
@@ -372,6 +379,10 @@ func (s GoodreadsScraper) fetchUser(ctx context.Context, id int) (schema.User, e
 		d.Tags = schema.SplitTags(item.UserShelves)
 		d.LikesRating = item.UserRating
 		d.Image = item.BookImageUrl
+		d.ISBN = item.ISBN
+		if len(d.ISBN) == 0 {
+			return schema.User{}, errors.Errorf("missing isbn")
+		}
 
 		u.Likes = append(u.Likes, d)
 	}

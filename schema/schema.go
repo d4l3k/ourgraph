@@ -26,5 +26,5 @@ type Document struct {
 	Tags        []string `json:"tags,omitempty"`
 	Likes       []User   `json:"~likes,omitempty"`
 	LikesRating int      `json:"likes|rating,omitempty"`
-	ISBN        int      `json:"isbn,omitempty"`
+	ISBN        string   `json:"isbn,omitempty"`
 }
