@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -32,6 +33,20 @@ type FFNetScraper struct {
 
 func (s FFNetScraper) Domain() string {
 	return s.domain
+}
+
+var pathRegexp = regexp.MustCompile(`/s/(\d+)`)
+
+func (s FFNetScraper) Normalize(u url.URL) (string, error) {
+	parts := pathRegexp.FindStringSubmatch(u.Path)
+	if len(parts) != 2 {
+		return "", errors.Errorf("failed to parse URL %q", u.String())
+	}
+	id, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", err
+	}
+	return s.storyURL(id), nil
 }
 
 func (s FFNetScraper) userExists(id int) (bool, error) {

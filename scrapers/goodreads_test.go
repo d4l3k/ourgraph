@@ -2,8 +2,26 @@ package scrapers
 
 import (
 	"encoding/xml"
+	"net/url"
 	"testing"
 )
+
+func TestGoodreadsNormalize(t *testing.T) {
+	in := "https://www.goodreads.com/book/show/136251.Harry_Potter_and_the_Deathly_Hallows"
+	want := "https://www.goodreads.com/book/show/136251"
+	var s GoodreadsScraper
+	u, err := url.Parse(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.Normalize(*u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != want {
+		t.Fatalf("wanted %q; got %q", out, want)
+	}
+}
 
 func TestGoodreadsXML(t *testing.T) {
 	in := []byte(`

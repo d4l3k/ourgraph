@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/d4l3k/ourgraph/schema"
+	"github.com/d4l3k/ourgraph/scrapers"
 	"github.com/dgraph-io/dgo"
 	"github.com/dgraph-io/dgo/protos/api"
 	"github.com/pkg/errors"
@@ -170,8 +172,29 @@ func getDocsInternal(ctx context.Context, txn *dgo.Txn, query string, params map
 	return results.Docs, nil
 }
 
+func (s *server) normalizeURL(urlStr string) (string, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
+	}
+	scraper, ok := s.scrapers[u.Host]
+	if !ok {
+		return "", errors.Errorf("unknown website %q", u.Host)
+	}
+	return scraper.Normalize(*u)
+}
+
 func (s *server) recommendations(ctx context.Context, id string, limit, offset int) (response, error) {
 	urls := splitURLs(id)
+
+	for i, url := range urls {
+		u, err := s.normalizeURL(url)
+		if err != nil {
+			return response{}, err
+		}
+		urls[i] = u
+	}
+
 	txn := s.dgo.NewReadOnlyTxn().BestEffort()
 
 	// Fetch documents first
@@ -290,6 +313,8 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 type server struct {
 	dc  api.DgraphClient
 	dgo *dgo.Dgraph
+
+	scrapers map[string]scrapers.Scraper
 }
 
 func run() error {
@@ -305,9 +330,15 @@ func run() error {
 		return err
 	}
 	defer conn.Close()
-	var s server
+	s := server{
+		scrapers: map[string]scrapers.Scraper{},
+	}
 	s.dc = api.NewDgraphClient(conn)
 	s.dgo = dgo.NewDgraphClient(s.dc)
+
+	for _, scraper := range scrapers.Scrapers() {
+		s.scrapers[scraper.Domain()] = scraper
+	}
 
 	fs := http.FileServer(http.Dir("ui"))
 	http.Handle("/static/", fs)

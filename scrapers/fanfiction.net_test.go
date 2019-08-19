@@ -10,6 +10,25 @@ import (
 	"github.com/d4l3k/ourgraph/schema"
 )
 
+func TestFFNetNormalize(t *testing.T) {
+	in := "https://www.fanfiction.net/s/13082265/1/foo-bar-1"
+	want := "https://www.fanfiction.net/s/13082265"
+	s := FFNetScraper{
+		domain: "www.fanfiction.net",
+	}
+	u, err := url.Parse(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.Normalize(*u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != want {
+		t.Fatalf("wanted %q; got %q", want, out)
+	}
+}
+
 func TestDocToUser(t *testing.T) {
 	cases := []struct {
 		html string

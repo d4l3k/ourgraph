@@ -2,6 +2,7 @@ package scrapers
 
 import (
 	"context"
+	"net/url"
 	"sync"
 
 	"github.com/d4l3k/ourgraph/schema"
@@ -35,4 +36,5 @@ type Consumer struct {
 type Scraper interface {
 	Domain() string
 	Scrape(ctx context.Context, c Consumer) error
+	Normalize(url url.URL) (string, error)
 }

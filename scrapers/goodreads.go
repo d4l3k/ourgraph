@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -30,6 +31,20 @@ type GoodreadsScraper struct {
 
 func (GoodreadsScraper) Domain() string {
 	return "www.goodreads.com"
+}
+
+var goodreadsPathRegexp = regexp.MustCompile(`/book/show/(\d+)`)
+
+func (s GoodreadsScraper) Normalize(u url.URL) (string, error) {
+	parts := goodreadsPathRegexp.FindStringSubmatch(u.Path)
+	if len(parts) != 2 {
+		return "", errors.Errorf("failed to parse URL %q", u.String())
+	}
+	id, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", err
+	}
+	return s.storyURL(id), nil
 }
 
 func (s GoodreadsScraper) userRSSURL(id int) string {
