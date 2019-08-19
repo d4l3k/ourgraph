@@ -13,6 +13,7 @@ type Document struct {
 	Uid         string   `json:"uid,omitempty"`
 	Url         string   `json:"url,omitempty"`
 	Name        string   `json:"title,omitempty"`
+	Author      string   `json:"author,omitempty"`
 	Created     int      `json:"created,omitempty"`
 	Updated     int      `json:"updated,omitempty"`
 	Reviews     int      `json:"reviews,omitempty"`
@@ -25,4 +26,5 @@ type Document struct {
 	Tags        []string `json:"tags,omitempty"`
 	Likes       []User   `json:"~likes,omitempty"`
 	LikesRating int      `json:"likes|rating,omitempty"`
+	ISBN        int      `json:"isbn,omitempty"`
 }
