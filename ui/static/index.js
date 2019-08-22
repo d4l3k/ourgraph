@@ -43,6 +43,10 @@ class SafeHTML extends LitElement {
 
   render () {
     return html`
+      <style>
+        @import "static/shared.css";
+      </style>
+
       <div .innerHTML="${sanitizeHtml(this.html)}">
       </div>
     `
