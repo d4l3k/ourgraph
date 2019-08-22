@@ -381,15 +381,23 @@ func run() error {
 		s.scrapers[scraper.Domain()] = scraper
 	}
 
-	fs := http.FileServer(http.Dir("ui"))
-	http.Handle("/static/", fs)
+	mux := http.NewServeMux()
 
-	http.HandleFunc("/", handleIndex)
-	http.HandleFunc("/api/v1/recommendation", jsonHandler(s.handleRecommendation))
+	fs := http.FileServer(http.Dir("ui"))
+
+	mux.Handle("/static/", fs)
+
+	mux.HandleFunc("/", handleIndex)
+	mux.HandleFunc("/api/v1/recommendation", jsonHandler(s.handleRecommendation))
 
 	log.Printf("Serving on :%s...", *port)
 
-	return http.ListenAndServe("0.0.0.0:"+*port, nil)
+	return http.ListenAndServe("0.0.0.0:"+*port, http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "s-max-age=3600, max-age=0, public")
+			mux.ServeHTTP(w, r)
+		}),
+	)
 }
 
 func main() {
