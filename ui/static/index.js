@@ -547,19 +547,12 @@ customElements.define('ourgraph-app', OurgraphApp)
 
   function renderBackground () {
     const pattern = Trianglify({
-      width: window.innerWidth,
-      height: window.innerHeight
+      width: window.screen.width,
+      height: window.screen.height
     })
     pattern.canvas(background)
   }
 
-  let timeout
-  window.addEventListener('resize', function () {
-    clearTimeout(timeout)
-    timeout = setTimeout(function () {
-      renderBackground()
-    }, 300)
-  })
   window.addEventListener('hashchange', function () {
     renderBackground()
   })
