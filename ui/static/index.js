@@ -92,7 +92,9 @@ class MaterialTextField extends LitElement {
   }
 
   firstUpdated (properties) {
-    this.mdc = new MDCTextField(this.shadowRoot.querySelector('.mdc-text-field'))
+    setTimeout(() => {
+      this.mdc = new MDCTextField(this.shadowRoot.querySelector('.mdc-text-field'))
+    }, 0)
   }
 
   render () {
