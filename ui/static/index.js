@@ -7,6 +7,7 @@ import {MDCTextField} from 'https://unpkg.com/@material/textfield?module'
 import {MDCRipple} from 'https://unpkg.com/@material/ripple?module'
 import {MDCLinearProgress} from 'https://unpkg.com/@material/linear-progress?module'
 import 'https://unpkg.com/sanitize-html@1.20.1/dist/sanitize-html.min.js?module'
+import 'https://unpkg.com/isbn@0.4.0/isbn.js?module'
 
 let endpoint = 'api/v1/recommendation'
 // If '?prod' is appended to URL, point to prod.
@@ -145,8 +146,7 @@ customElements.define('material-card', MaterialCard)
 class StoryElement extends LitElement {
   static get properties () {
     return {
-      story: { type: Object },
-      score: { type: Number }
+      recommendation: { type: Object }
     }
   }
 
@@ -156,8 +156,7 @@ class StoryElement extends LitElement {
   }
 
   render () {
-    const {story, score} = this
-    const saveLink = 'http://ficsave.com/?format=epub&e=&auto_download=yes&story_url=' + story.url
+    const {document, score, links} = this.recommendation
 
     return html`
       <style>
@@ -180,25 +179,57 @@ class StoryElement extends LitElement {
           float: right;
         }
       </style>
-      <a href="${story.url}" class="title">
-        ${story.title}
-        ${story.author ? ' by ' + story.author : ''}
+      <a href="${document.url}" class="title">
+        ${document.title}
+        ${document.author ? ' by ' + document.author : ''}
       </a>
       ${score ? (' - ' + this.roundTo(score, 2)) : ''}
       <span class="secondary-content">
-        <a href="${saveLink}">Download</a>,
-        <a href="#/story/${story.url}">Search</a>
+        <a href="#/story/${document.url}">Recommend</a>
       </span>
       <div>
-        <safe-html .html="${story.desc}"></safe-html>
+        <safe-html .html="${document.desc}"></safe-html>
       </div>
       <div class="stats">
-        Chapters: ${story.chapters} -
-        Reviews: ${story.reviews} -
-        Likes: ${story.likecount} -
-        Tags: ${(story.tags || []).slice(0, 25).join(', ')}
+        ${this.desc(document)}
+      </div>
+      ${this.renderLinks(links)}
+    `
+  }
+
+  renderLinks (links) {
+    if (!links) {
+      return
+    }
+
+    return html`
+      <div>
+        ${
+          links.map(({name, url}, i) => {
+            return html`
+              <a href="${url}">${name}</a>${i < (links.length - 1) ? ',' : ''}
+            `
+          })
+        }
       </div>
     `
+  }
+
+  desc (document) {
+    const out = []
+    if (document.chapters) {
+      out.push(`Chapters: ${document.chapters}`)
+    }
+    if (document.reviews) {
+      out.push(`Reviews: ${document.reviews}`)
+    }
+    if (document.likecount) {
+      out.push(`Likes: ${document.likecount}`)
+    }
+    if (document.tags) {
+      out.push(`Tags: ${(document.tags || []).slice(0, 25).join(', ')}`)
+    }
+    return out.join(' - ');
   }
 }
 
@@ -449,8 +480,8 @@ class OurgraphApp extends LitElement {
       })
     }
     const out = []
-    dispStories.forEach(story => {
-      out.push(html`<story-element .story=${story.Document} .score=${story.Score}>`)
+    dispStories.forEach(recommendation => {
+      out.push(html`<story-element .recommendation=${recommendation}>`)
     })
 
     return html`
@@ -458,7 +489,7 @@ class OurgraphApp extends LitElement {
         <material-card class="big" id="stories">
           <h2>Input</h2>
           <div class="collection">
-            ${this.data.Documents.map(doc => html`<story-element .story=${doc}>`)}
+            ${this.data.Documents.map(doc => html`<story-element .recommendation=${doc}>`)}
           </div>
 
           <div class="row-space">

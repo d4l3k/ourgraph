@@ -28,3 +28,8 @@ type Document struct {
 	LikesRating int      `json:"likes|rating,omitempty"`
 	ISBN        string   `json:"isbn,omitempty"`
 }
+
+type Link struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
+}

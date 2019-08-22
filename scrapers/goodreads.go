@@ -16,6 +16,7 @@ import (
 
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/dyatlov/go-opengraph/opengraph"
+	"github.com/moraes/isbn"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 	"golang.org/x/sync/errgroup"
@@ -31,6 +32,36 @@ type GoodreadsScraper struct {
 
 func (GoodreadsScraper) Domain() string {
 	return "www.goodreads.com"
+}
+
+func (GoodreadsScraper) Links(doc schema.Document) ([]schema.Link, error) {
+	links := []schema.Link{
+		{
+			Name: "Google Play Books (Title)",
+			Url:  "https://play.google.com/store/search?c=books&q=" + doc.Name,
+		},
+		{
+			Name: "Amazon (Title)",
+			Url:  "https://www.amazon.com/s?i=stripbooks&rh=p_28%3A" + doc.Name,
+		},
+	}
+
+	if len(doc.ISBN) > 0 {
+		isbn, err := isbn.To13(doc.ISBN)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, schema.Link{
+			Name: "Google Play Books (ISBN)",
+			Url:  "https://play.google.com/store/books/details?id=ISBN_" + isbn,
+		})
+		links = append(links, schema.Link{
+			Name: "Amazon (ISBN)",
+			Url:  "https://www.amazon.com/s?i=stripbooks&rh=p_66%3A" + isbn,
+		})
+	}
+
+	return links, nil
 }
 
 var goodreadsPathRegexp = regexp.MustCompile(`/book/show/(\d+)`)

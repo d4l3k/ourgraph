@@ -37,4 +37,5 @@ type Scraper interface {
 	Domain() string
 	Scrape(ctx context.Context, c Consumer) error
 	Normalize(url url.URL) (string, error)
+	Links(doc schema.Document) ([]schema.Link, error)
 }

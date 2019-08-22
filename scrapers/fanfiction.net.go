@@ -35,6 +35,15 @@ func (s FFNetScraper) Domain() string {
 	return s.domain
 }
 
+func (FFNetScraper) Links(doc schema.Document) ([]schema.Link, error) {
+	return []schema.Link{
+		{
+			Name: "Download ePub",
+			Url:  "http://ficsave.xyz/?format=epub&e=&auto_download=yes&story_url=" + doc.Url,
+		},
+	}, nil
+}
+
 var pathRegexp = regexp.MustCompile(`/s/(\d+)`)
 
 func (s FFNetScraper) Normalize(u url.URL) (string, error) {

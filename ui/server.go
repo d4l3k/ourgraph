@@ -82,12 +82,13 @@ func jsonHandler(f func(r *http.Request) (interface{}, error)) http.HandlerFunc 
 }
 
 type recommendation struct {
-	Score    float32
-	Document schema.Document
+	Score    float32         `json:"score"`
+	Document schema.Document `json:"document"`
+	Links    []schema.Link   `json:"links"`
 }
 
 type response struct {
-	Documents       []schema.Document
+	Documents       []recommendation
 	Recommendations []recommendation
 }
 
@@ -115,6 +116,7 @@ func getDocsByURL(ctx context.Context, txn *dgo.Txn, url string) ([]schema.Docum
 				complete
 				reviews
 				likecount
+				isbn
 			}
 		}`,
 		map[string]string{"$url": url},
@@ -306,10 +308,47 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 		rec.Document = docMap[rec.Document.Uid]
 		recList[i] = rec
 	}
+
+	var docList []recommendation
+	for _, doc := range docs {
+		docList = append(docList, recommendation{
+			Document: doc,
+		})
+	}
+
+	if err := s.annotateRecs(docList); err != nil {
+		return response{}, err
+	}
+	if err := s.annotateRecs(recList); err != nil {
+		return response{}, err
+	}
+
 	return response{
-		Documents:       docs,
+		Documents:       docList,
 		Recommendations: recList,
 	}, nil
+}
+
+func (s server) annotateRecs(recs []recommendation) error {
+	for i, rec := range recs {
+		u, err := url.Parse(rec.Document.Url)
+		if err != nil {
+			return err
+		}
+		s, ok := s.scrapers[u.Host]
+		if !ok {
+			return errors.Errorf("unknown hostname for %q", u.Host)
+		}
+		rec.Links, err = s.Links(rec.Document)
+		if err != nil {
+			return err
+		}
+		sort.Slice(rec.Links, func(i, j int) bool {
+			return rec.Links[i].Name < rec.Links[j].Name
+		})
+		recs[i] = rec
+	}
+	return nil
 }
 
 type server struct {
