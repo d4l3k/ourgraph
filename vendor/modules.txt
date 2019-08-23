@@ -1,0 +1,77 @@
+# github.com/PuerkitoBio/goquery v1.5.0
+github.com/PuerkitoBio/goquery
+# github.com/andybalholm/cascadia v1.0.0
+github.com/andybalholm/cascadia
+# github.com/dgraph-io/dgo v1.0.0
+github.com/dgraph-io/dgo
+github.com/dgraph-io/dgo/protos/api
+github.com/dgraph-io/dgo/y
+# github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8
+github.com/dyatlov/go-opengraph/opengraph
+# github.com/golang/protobuf v1.3.2
+github.com/golang/protobuf/proto
+github.com/golang/protobuf/ptypes
+github.com/golang/protobuf/ptypes/any
+github.com/golang/protobuf/ptypes/duration
+github.com/golang/protobuf/ptypes/timestamp
+# github.com/moraes/isbn v0.0.0-20151007102746-e6388fb1bfd5
+github.com/moraes/isbn
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# go.uber.org/ratelimit v0.1.0
+go.uber.org/ratelimit
+go.uber.org/ratelimit/internal/clock
+# golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+golang.org/x/net/html
+golang.org/x/net/trace
+golang.org/x/net/html/atom
+golang.org/x/net/internal/timeseries
+golang.org/x/net/http2
+golang.org/x/net/http2/hpack
+golang.org/x/net/http/httpguts
+golang.org/x/net/idna
+# golang.org/x/sync v0.0.0-20190423024810-112230192c58
+golang.org/x/sync/errgroup
+# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
+golang.org/x/sys/unix
+# golang.org/x/text v0.3.0
+golang.org/x/text/secure/bidirule
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+golang.org/x/text/transform
+# google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+google.golang.org/genproto/googleapis/rpc/status
+# google.golang.org/grpc v1.23.0
+google.golang.org/grpc
+google.golang.org/grpc/codes
+google.golang.org/grpc/metadata
+google.golang.org/grpc/status
+google.golang.org/grpc/balancer
+google.golang.org/grpc/balancer/roundrobin
+google.golang.org/grpc/connectivity
+google.golang.org/grpc/credentials
+google.golang.org/grpc/encoding
+google.golang.org/grpc/encoding/proto
+google.golang.org/grpc/grpclog
+google.golang.org/grpc/internal
+google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancerload
+google.golang.org/grpc/internal/binarylog
+google.golang.org/grpc/internal/channelz
+google.golang.org/grpc/internal/envconfig
+google.golang.org/grpc/internal/grpcrand
+google.golang.org/grpc/internal/grpcsync
+google.golang.org/grpc/internal/transport
+google.golang.org/grpc/keepalive
+google.golang.org/grpc/naming
+google.golang.org/grpc/peer
+google.golang.org/grpc/resolver
+google.golang.org/grpc/resolver/dns
+google.golang.org/grpc/resolver/passthrough
+google.golang.org/grpc/serviceconfig
+google.golang.org/grpc/stats
+google.golang.org/grpc/tap
+google.golang.org/grpc/balancer/base
+google.golang.org/grpc/credentials/internal
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/internal/syscall

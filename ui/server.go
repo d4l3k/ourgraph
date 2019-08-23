@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 )
 
 var (
-	port       = flag.String("port", "6060", "port to run on")
 	dgraphAddr = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
 )
 
@@ -45,7 +44,7 @@ func requestFormInt(r *http.Request, field string, def int) int {
 	return num
 }
 
-func (s *server) handleRecommendation(r *http.Request) (interface{}, error) {
+func handleRecommendation(r *http.Request) (interface{}, error) {
 	id := r.FormValue("id")
 	limit := requestFormInt(r, "limit", 100)
 	offset := requestFormInt(r, "offset", 0)
@@ -55,6 +54,27 @@ func (s *server) handleRecommendation(r *http.Request) (interface{}, error) {
 	if offset < 0 {
 		return nil, errors.Errorf("offset must be  >= 0")
 	}
+
+	conn, err := grpc.Dial(
+		*dgraphAddr,
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100*1000*1000)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	s := server{
+		scrapers: map[string]scrapers.Scraper{},
+	}
+	s.dc = api.NewDgraphClient(conn)
+	s.dgo = dgo.NewDgraphClient(s.dc)
+
+	for _, scraper := range scrapers.Scrapers() {
+		s.scrapers[scraper.Domain()] = scraper
+	}
+
 	return s.recommendations(r.Context(), id, limit, offset)
 }
 
@@ -358,28 +378,10 @@ type server struct {
 	scrapers map[string]scrapers.Scraper
 }
 
-func run() error {
+func Handler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "s-max-age=3600, max-age=0, public")
+
 	log.SetFlags(log.Flags() | log.Lshortfile)
-	flag.Parse()
-
-	conn, err := grpc.Dial(
-		*dgraphAddr,
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100*1000*1000)),
-	)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	s := server{
-		scrapers: map[string]scrapers.Scraper{},
-	}
-	s.dc = api.NewDgraphClient(conn)
-	s.dgo = dgo.NewDgraphClient(s.dc)
-
-	for _, scraper := range scrapers.Scrapers() {
-		s.scrapers[scraper.Domain()] = scraper
-	}
 
 	mux := http.NewServeMux()
 
@@ -388,20 +390,7 @@ func run() error {
 	mux.Handle("/static/", fs)
 
 	mux.HandleFunc("/", handleIndex)
-	mux.HandleFunc("/api/v1/recommendation", jsonHandler(s.handleRecommendation))
+	mux.HandleFunc("/api/v1/recommendation", jsonHandler(handleRecommendation))
 
-	log.Printf("Serving on :%s...", *port)
-
-	return http.ListenAndServe("0.0.0.0:"+*port, http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "s-max-age=3600, max-age=0, public")
-			mux.ServeHTTP(w, r)
-		}),
-	)
-}
-
-func main() {
-	if err := run(); err != nil {
-		log.Fatal(err)
-	}
+	mux.ServeHTTP(w, r)
 }
