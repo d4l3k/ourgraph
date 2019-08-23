@@ -1,0 +1,67 @@
+#cloud-config
+
+coreos:
+  units:
+    - name: install-docker-compose.service
+      command: start
+      content: |
+        [Unit]
+        Description=Install docker-compose
+        ConditionPathExists=!/opt/bin/docker-compose
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/mkdir -p /opt/bin/
+        ExecStart=/usr/bin/curl -o /opt/bin/docker-compose -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-linux-x86_64"
+        ExecStart=/usr/bin/chmod +x /opt/bin/docker-compose
+
+    - name: create-dgraph-certs.service
+      command: start
+      content: |
+        [Unit]
+        Description=Create dgraph certs
+        ConditionPathExists=!/data/node.key
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/docker run -v /data:/dgraph -t dgraph/dgraph:latest dgraph cert --dir /dgraph -n node -c user
+
+    - name: dgraph.service
+      command: start
+      content: |
+        [Unit]
+        Description=dgraph
+
+        [Service]
+        WorkingDirectory=/etc/dgraph
+        ExecStartPre=-/opt/bin/docker-compose down
+        ExecStartPre=/usr/bin/docker pull dgraph/dgraph:latest
+        ExecStart=/opt/bin/docker-compose up
+
+
+write_files:
+  - path: /etc/dgraph/docker-compose.yml
+    permissions: 0644
+    content: |
+      version: "3.2"
+      services:
+        zero:
+          image: dgraph/dgraph:latest
+          volumes:
+            - /data:/dgraph
+          expose:
+            - "5080"
+            - "6080"
+          restart: on-failure
+          command: dgraph zero --my=zero:5080
+        server:
+          image: dgraph/dgraph:latest
+          volumes:
+            - /data:/dgraph
+          ports:
+            - 8080:8080
+            - 9080:9080
+          restart: on-failure
+          command: dgraph alpha --my=server:7080 --lru_mb=2048 --zero=zero:5080 --tls_dir /dgraph --tls_client_auth REQUIREANDVERIFY
