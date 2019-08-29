@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,16 +12,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/d4l3k/ourgraph/db"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/d4l3k/ourgraph/scrapers"
 	"github.com/dgraph-io/dgo"
 	"github.com/dgraph-io/dgo/protos/api"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
-)
-
-var (
-	dgraphAddr = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
 )
 
 // Average user rating for a document out of 5.
@@ -55,11 +50,7 @@ func handleRecommendation(r *http.Request) (interface{}, error) {
 		return nil, errors.Errorf("offset must be  >= 0")
 	}
 
-	conn, err := grpc.Dial(
-		*dgraphAddr,
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100*1000*1000)),
-	)
+	conn, err := db.NewConn()
 	if err != nil {
 		return nil, err
 	}
