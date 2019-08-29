@@ -6,8 +6,7 @@
   "build": {
     "env": {
       "DGRAPH_CRT": "@dgraph-crt",
-      "DGRAPH_KEY": "@dgraph-key",
-      "DGRAPH_CA": "@dgraph-ca"
+      "DGRAPH_KEY": "@dgraph-key"
     }
   },
   "builds": [
