@@ -3,11 +3,9 @@
   "name": "ourgraph-ui",
   "public": false,
   "alias": "ourgraph.rice.sh",
-  "build": {
-    "env": {
-      "DGRAPH_CRT": "@dgraph-crt",
-      "DGRAPH_KEY": "@dgraph-key"
-    }
+  "env": {
+    "DGRAPH_CRT": "@dgraph-crt",
+    "DGRAPH_KEY": "@dgraph-key"
   },
   "builds": [
     { "src": "ui/**/*.go", "use": "@now/go" },

@@ -22,6 +22,8 @@ coreos:
         [Unit]
         Description=Create dgraph certs
         ConditionPathExists=!/data/node.key
+        Requires=docker
+        After=docker
 
         [Service]
         Type=oneshot
@@ -33,6 +35,8 @@ coreos:
       content: |
         [Unit]
         Description=dgraph
+        Requires=docker
+        After=docker
 
         [Service]
         WorkingDirectory=/etc/dgraph
@@ -48,7 +52,7 @@ write_files:
       version: "3.2"
       services:
         zero:
-          image: dgraph/dgraph:latest
+          image: dgraph/dgraph:v1.0.17
           volumes:
             - /data:/dgraph
           expose:
@@ -57,7 +61,7 @@ write_files:
           restart: on-failure
           command: dgraph zero --my=zero:5080
         server:
-          image: dgraph/dgraph:latest
+          image: dgraph/dgraph:v1.0.17
           volumes:
             - /data:/dgraph
           ports:

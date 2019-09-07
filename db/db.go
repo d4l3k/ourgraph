@@ -1,10 +1,13 @@
 package db
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
+	"log"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -34,13 +37,17 @@ xy3aMbfsIvT4YsuDXUJRI6UfPjZsQ6QSCNLdb4cSDYee9guSXgEUeO2JDyxODYnd
 yQCcxjPCUH8=
 -----END CERTIFICATE-----`
 
-func NewConn() (*grpc.ClientConn, error) {
+func NewConn(ctx context.Context) (*grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100 * 1000 * 1000)),
+		grpc.WithBlock(),
 	}
 	crt := os.Getenv("DGRAPH_CRT")
 	key := os.Getenv("DGRAPH_KEY")
 	if len(crt) > 0 {
+		log.Printf("using SSL")
 		cert, err := tls.X509KeyPair([]byte(crt), []byte(key))
 		if err != nil {
 			return nil, err
@@ -65,5 +72,7 @@ func NewConn() (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithInsecure())
 	}
 
-	return grpc.Dial(*dgraphAddr, opts...)
+	addr := *dgraphAddr
+	log.Printf("connecting to %q...", addr)
+	return grpc.DialContext(ctx, addr, opts...)
 }

@@ -15,6 +15,7 @@
 *.bin
 
 .pyre/
+.env*
 
 
 *neomake*

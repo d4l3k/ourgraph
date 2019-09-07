@@ -50,7 +50,7 @@ func handleRecommendation(r *http.Request) (interface{}, error) {
 		return nil, errors.Errorf("offset must be  >= 0")
 	}
 
-	conn, err := db.NewConn()
+	conn, err := db.NewConn(r.Context())
 	if err != nil {
 		return nil, err
 	}
