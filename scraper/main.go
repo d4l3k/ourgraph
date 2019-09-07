@@ -11,17 +11,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/d4l3k/ourgraph/db"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/d4l3k/ourgraph/scrapers"
 	"github.com/dgraph-io/dgo"
 	"github.com/dgraph-io/dgo/protos/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 var (
-	dgraphAddr   = flag.String("dgraphaddr", "localhost:9080", "address of the dgraph instance")
 	scrapeFilter = flag.String("scrapefilter", "", "scrape only matching domains")
 )
 
@@ -57,7 +56,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.urlCache = map[string]string{}
 	s.mu.domainAdded = map[string]int{}
 
-	conn, err := grpc.Dial(*dgraphAddr, grpc.WithInsecure())
+	conn, err := db.NewConn(ctx)
 	if err != nil {
 		return err
 	}

@@ -46,8 +46,8 @@ func NewConn(ctx context.Context) (*grpc.ClientConn, error) {
 	}
 	crt := os.Getenv("DGRAPH_CRT")
 	key := os.Getenv("DGRAPH_KEY")
-	if len(crt) > 0 {
-		log.Printf("using SSL")
+	useSSL := len(crt) > 0
+	if useSSL {
 		cert, err := tls.X509KeyPair([]byte(crt), []byte(key))
 		if err != nil {
 			return nil, err
@@ -73,6 +73,6 @@ func NewConn(ctx context.Context) (*grpc.ClientConn, error) {
 	}
 
 	addr := *dgraphAddr
-	log.Printf("connecting to %q...", addr)
+	log.Printf("connecting to %q... (ssl=%t)", addr, useSSL)
 	return grpc.DialContext(ctx, addr, opts...)
 }
