@@ -20,3 +20,7 @@
 
 *neomake*
 __pycache__
+
+*.tsv
+*.csv
+*.pt
