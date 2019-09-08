@@ -112,16 +112,15 @@ func run() error {
 				if err := json.Unmarshal(resp.Json, &results); err != nil {
 					return err
 				}
+
+				fmu.Lock()
 				for _, u := range results.Users {
 					for _, d := range u.Likes {
-						const format = "%s\tl\t%s\n"
-
-						fmu.Lock()
-						fmt.Fprintf(f, format, u.Uid, d.Uid)
-						fmt.Fprintf(f, format, d.Uid, u.Uid)
-						fmu.Unlock()
+						fmt.Fprintf(f, "%s\tl\t%s\n", u.Uid, d.Uid)
+						fmt.Fprintf(f, "%s\tb\t%s\n", d.Uid, u.Uid)
 					}
 				}
+				fmu.Unlock()
 			}
 			return nil
 		})

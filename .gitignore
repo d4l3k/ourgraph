@@ -24,3 +24,6 @@ __pycache__
 *.tsv
 *.csv
 *.pt
+*.h5
+*.json
+*.txt
