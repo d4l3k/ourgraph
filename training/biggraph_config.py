@@ -33,7 +33,7 @@ def get_torchbiggraph_config():
         dynamic_relations=False,
 
         # Scoring model
-        dimension=200,
+        dimension=100,
         global_emb=True,
         comparator='dot',
 
