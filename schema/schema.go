@@ -33,3 +33,8 @@ type Link struct {
 	Name string `json:"name"`
 	Url  string `json:"url"`
 }
+
+type DocGraph struct {
+	Docs  []string `json:"doc"`
+	Edges [][]int
+}

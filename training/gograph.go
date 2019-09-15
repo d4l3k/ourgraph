@@ -6,8 +6,10 @@ import (
 	"runtime/debug"
 	"sort"
 	"sync"
+	"time"
 
 	torch "github.com/d4l3k/gotorch"
+	"github.com/paulbellamy/ratecounter"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -38,6 +40,8 @@ type Model struct {
 	LR        float32
 	BatchSize int
 	Pattern   *torch.Tensor
+
+	QPS *ratecounter.RateCounter
 }
 
 func (m *Model) worker() error {
@@ -104,10 +108,12 @@ func (m *Model) trainBatch(i int, batch []Edge) error {
 
 	opt.Step()
 
-	if i%10000 == 0 {
-		log.Printf("loss = %+v", loss.Blob())
+	if i%1000 == 0 {
+		log.Printf("loss = %+v, qps = %+v", loss.Blob(), m.QPS.Rate()/10)
 		debug.FreeOSMemory()
 	}
+
+	m.QPS.Incr(int64(len(batch)))
 
 	return nil
 }
@@ -119,6 +125,7 @@ func run() error {
 		LR:        0.001,
 		Documents: makeEmbeddingTable(numDocs, embeddingDim),
 		BatchSize: 2,
+		QPS:       ratecounter.NewRateCounter(10 * time.Second),
 	}
 	vals := []float32{}
 	for i := 0; i < model.BatchSize; i++ {

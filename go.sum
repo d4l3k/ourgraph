@@ -5,6 +5,12 @@ github.com/PuerkitoBio/goquery v1.5.0/go.mod h1:qD2PgZ9lccMbQlc7eEOjaeRlFQON7xY8
 github.com/andybalholm/cascadia v1.0.0 h1:hOCXnnZ5A+3eVDX8pvgl4kofXv2ELss0bKcqRySc45o=
 github.com/andybalholm/cascadia v1.0.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
+github.com/d4l3k/gotorch v0.0.0-20190914224018-707b68b25d3c h1:YuXWjgrEiEPxWEoFN/16I5F0Ys9ZEZ2ZW3MwuBW0A6s=
+github.com/d4l3k/gotorch v0.0.0-20190914224018-707b68b25d3c/go.mod h1:Wju9/hUaqIk804RACXOslCCT4VpGYp5urg+HC0R7dZQ=
+github.com/d4l3k/gotorch v0.0.0-20190914233408-e6cab7201b29 h1:hTCkysAo2rFcBD5U1yRWzP5uBXtMMSb23m+G2xvFq0c=
+github.com/d4l3k/gotorch v0.0.0-20190914233408-e6cab7201b29/go.mod h1:Wju9/hUaqIk804RACXOslCCT4VpGYp5urg+HC0R7dZQ=
+github.com/d4l3k/gotorch v0.0.0-20190914235326-0ec37fd1c78e h1:m2ziZz9i24MHKxCIwBMnghTtHc4Yr9F8nKh2p83fErc=
+github.com/d4l3k/gotorch v0.0.0-20190914235326-0ec37fd1c78e/go.mod h1:Wju9/hUaqIk804RACXOslCCT4VpGYp5urg+HC0R7dZQ=
 github.com/dgraph-io/dgo v1.0.0 h1:DRuI66G+j0XWDOXly4v5PSk2dGkbIopAZIirRjq7lzI=
 github.com/dgraph-io/dgo v1.0.0/go.mod h1:6K5zUB6Lsml4SEStX+fPzGhJtCLX9XxbkHJLsGOXS1E=
 github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8 h1:6muCmMJat6z7qptVrIf/+OWPxsjAfvhw5/6t+FwEkgg=
@@ -20,6 +26,8 @@ github.com/gonum/hdf5 v0.0.0-20190516085527-847297cb569e/go.mod h1:v22qHhNLKtoYs
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/moraes/isbn v0.0.0-20151007102746-e6388fb1bfd5 h1:ba6b9zWzr0ZaB8JKpQgm/PwA97aqUlJ0hRzgi5vsYbU=
 github.com/moraes/isbn v0.0.0-20151007102746-e6388fb1bfd5/go.mod h1:YbfTskKL/cUU5Uq1OlRksOn5uT1Mt9CB27kllRDirQY=
+github.com/paulbellamy/ratecounter v0.2.0 h1:2L/RhJq+HA8gBQImDXtLPrDXK5qAj6ozWVK/zFXVJGs=
+github.com/paulbellamy/ratecounter v0.2.0/go.mod h1:Hfx1hDpSGoqxkVVpBi/IlYD7kChlfo5C6hzIHwPqfFE=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 go.uber.org/ratelimit v0.1.0 h1:U2AruXqeTb4Eh9sYQSTrMhH8Cb7M0Ian2ibBOnBcnAw=

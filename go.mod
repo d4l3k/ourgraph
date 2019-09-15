@@ -4,10 +4,12 @@ go 1.12
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.0
+	github.com/d4l3k/gotorch v0.0.0-20190914235326-0ec37fd1c78e
 	github.com/dgraph-io/dgo v1.0.0
 	github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8
 	github.com/gonum/hdf5 v0.0.0-20190516085527-847297cb569e // indirect
 	github.com/moraes/isbn v0.0.0-20151007102746-e6388fb1bfd5
+	github.com/paulbellamy/ratecounter v0.2.0
 	github.com/pkg/errors v0.8.1
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7

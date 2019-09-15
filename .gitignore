@@ -27,3 +27,4 @@ __pycache__
 *.h5
 *.json
 *.txt
+*.gz
