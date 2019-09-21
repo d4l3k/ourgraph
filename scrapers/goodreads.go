@@ -34,15 +34,30 @@ func (GoodreadsScraper) Domain() string {
 	return "www.goodreads.com"
 }
 
+var symbolsRegexp = regexp.MustCompile("[^a-zA-Z0-9]+")
+
+func stripSymbols(s string) string {
+	return strings.TrimSpace(symbolsRegexp.ReplaceAllString(s, " "))
+}
+
+func urlFormat(s string) string {
+	return url.QueryEscape(stripSymbols(s))
+}
+
 func (GoodreadsScraper) Links(doc schema.Document) ([]schema.Link, error) {
+	name := urlFormat(doc.Name + " " + doc.Author)
 	links := []schema.Link{
 		{
 			Name: "Google Play Books (Title)",
-			Url:  "https://play.google.com/store/search?c=books&q=" + doc.Name,
+			Url:  "https://play.google.com/store/search?c=books&q=" + name,
 		},
 		{
 			Name: "Amazon (Title)",
-			Url:  "https://www.amazon.com/s?i=stripbooks&rh=p_28%3A" + doc.Name,
+			Url:  "https://www.amazon.com/s?i=stripbooks&k=" + name,
+		},
+		{
+			Name: "OverDrive",
+			Url:  "https://www.overdrive.com/search?q=" + name,
 		},
 	}
 
@@ -51,6 +66,7 @@ func (GoodreadsScraper) Links(doc schema.Document) ([]schema.Link, error) {
 		if err != nil {
 			return nil, err
 		}
+		isbn = urlFormat(isbn)
 		links = append(links, schema.Link{
 			Name: "Google Play Books (ISBN)",
 			Url:  "https://play.google.com/store/books/details?id=ISBN_" + isbn,
