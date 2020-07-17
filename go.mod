@@ -16,6 +16,7 @@ require (
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	gonum.org/v1/hdf5 v0.0.0-20190516085527-847297cb569e
 	google.golang.org/grpc v1.23.0
 )

@@ -15,11 +15,12 @@ import (
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
+	"golang.org/x/time/rate"
 )
 
 func init() {
 	addScraper(&AO3Scraper{
-		limiter: ratelimit.New(1, ratelimit.WithoutSlack),
+		limiter: LimiterWrapper{Limiter: rate.NewLimiter(0.9, 1)},
 	})
 }
 
@@ -174,11 +175,17 @@ func (sc AO3Scraper) parseUserBookmarks(doc *goquery.Document) (schema.User, err
 
 	var stories []schema.Document
 	for _, s := range subSelections(doc.Find("ol.bookmark li.bookmark")) {
+		if strings.Contains(s.Find(".message").Text(), "This has been deleted, sorry!") {
+			continue
+		}
 		st := schema.Document{}
 		link := s.Find(".heading a").First()
 		parsedLink, err := url.Parse(link.AttrOr("href", ""))
 		if err != nil {
 			return schema.User{}, err
+		}
+		if strings.Contains(parsedLink.String(), "/series/") {
+			continue
 		}
 		normalized, err := sc.Normalize(*doc.Url.ResolveReference(parsedLink))
 		if err != nil {

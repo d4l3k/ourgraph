@@ -8,12 +8,15 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/d4l3k/ourgraph/schema"
+	"go.uber.org/ratelimit"
 )
 
 func TestGetLatest(t *testing.T) {
 	t.Parallel()
 
-	var s AO3Scraper
+	s := AO3Scraper{
+		limiter: ratelimit.NewUnlimited(),
+	}
 	id, err := s.getLatest()
 	if err != nil {
 		t.Fatal(err)
@@ -96,6 +99,31 @@ func TestNormalize(t *testing.T) {
 func TestParseUserBookmarks(t *testing.T) {
 	html := `
 <ol class="bookmark index group">
+<li id="bookmark_114516700" class="bookmark blurb group" role="article">
+
+<p class="message">This has been deleted, sorry!</p>
+<div class="new dynamic" id="bookmark_form_placement_for_114516700"></div>
+
+<div class="user module group">
+<!--bookmarker, time-->
+<h5 class="byline heading">
+Bookmarked by <a href="/users/SuperFan_Sone/pseuds/SuperFan_Sone/bookmarks">SuperFan_Sone</a>
+</h5>
+<p class="datetime">07 Sep 2016</p>
+
+<!--meta-->
+
+
+<!--notes-->
+
+<!--navigation and actions-->
+</div>
+
+
+<div class="recent dynamic" id="recent_work_114516700" style="display: none;"></div>
+
+
+</li>
 <li id="bookmark_506838682" class="bookmark blurb group" role="article">
 
 <!--bookmark icons-->
