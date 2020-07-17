@@ -11,6 +11,7 @@ import (
 )
 
 func TestFFNetNormalize(t *testing.T) {
+	t.Parallel()
 	in := "https://www.fanfiction.net/s/13082265/1/foo-bar-1"
 	want := "https://www.fanfiction.net/s/13082265"
 	s := FFNetScraper{
@@ -30,6 +31,7 @@ func TestFFNetNormalize(t *testing.T) {
 }
 
 func TestDocToUser(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		html string
 		want schema.User

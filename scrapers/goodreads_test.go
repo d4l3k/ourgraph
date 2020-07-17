@@ -7,6 +7,7 @@ import (
 )
 
 func TestGoodreadsNormalize(t *testing.T) {
+	t.Parallel()
 	in := "https://www.goodreads.com/book/show/136251.Harry_Potter_and_the_Deathly_Hallows"
 	want := "https://www.goodreads.com/book/show/136251"
 	var s GoodreadsScraper
@@ -24,6 +25,7 @@ func TestGoodreadsNormalize(t *testing.T) {
 }
 
 func TestGoodreadsXML(t *testing.T) {
+	t.Parallel()
 	in := []byte(`
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" >
