@@ -70,6 +70,7 @@ func TestDocToUser(t *testing.T) {
 						Name:      "foo",
 						Created:   1174348577,
 						Updated:   1527040475,
+						Author:    "bar",
 						Reviews:   246,
 						LikeCount: 102,
 						WordCount: 48219,

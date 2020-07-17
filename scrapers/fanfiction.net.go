@@ -231,6 +231,13 @@ func (sc FFNetScraper) docToUser(doc *goquery.Document) (schema.User, error) {
 				st.Tags = append(st.Tags, schema.MakeSlug(category))
 			}
 
+			s.Find("a").Each(func(i int, s *goquery.Selection) {
+				href := s.AttrOr("href", "")
+				if strings.HasPrefix(href, "/u/") {
+					st.Author = s.Text()
+				}
+			})
+
 			contentDiv := s.Find("div").First()
 			st.Desc = nodeText(contentDiv.Nodes[0].FirstChild)
 
