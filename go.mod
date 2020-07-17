@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.5.0
 	github.com/d4l3k/gotorch v0.0.0-20190914235326-0ec37fd1c78e
 	github.com/dgraph-io/dgo v1.0.0
+	github.com/dgraph-io/dgo/v200 v200.0.0-20200714143556-08d85e5f95a7
 	github.com/dyatlov/go-opengraph v0.0.0-20180429202543-816b6608b3c8
 	github.com/gonum/hdf5 v0.0.0-20190516085527-847297cb569e // indirect
 	github.com/moraes/isbn v0.0.0-20151007102746-e6388fb1bfd5

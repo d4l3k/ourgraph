@@ -2,6 +2,8 @@
 
 coreos:
   units:
+    - name: docker.service
+      command: start
     - name: install-docker-compose.service
       command: start
       content: |
@@ -22,8 +24,7 @@ coreos:
         [Unit]
         Description=Create dgraph certs
         ConditionPathExists=!/data/node.key
-        Requires=docker
-        After=docker
+        After=docker.service
 
         [Service]
         Type=oneshot
@@ -35,8 +36,7 @@ coreos:
       content: |
         [Unit]
         Description=dgraph
-        Requires=docker
-        After=docker
+        After=docker.service
 
         [Service]
         WorkingDirectory=/etc/dgraph
@@ -68,4 +68,4 @@ write_files:
             - 8080:8080
             - 9080:9080
           restart: on-failure
-          command: dgraph alpha --my=server:7080 --lru_mb=2048 --zero=zero:5080 --tls_dir /dgraph --tls_client_auth REQUIREANDVERIFY
+          command: dgraph alpha --my=server:7080 --lru_mb=2048 --zero=zero:5080 --tls_dir /dgraph --tls_client_auth REQUIREANDVERIFY --whitelist 172.17.0.1:172.30.0.1 --export /dgraph/export/

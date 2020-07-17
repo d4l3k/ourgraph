@@ -14,8 +14,8 @@ import (
 	"github.com/d4l3k/ourgraph/db"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/d4l3k/ourgraph/scrapers"
-	"github.com/dgraph-io/dgo"
-	"github.com/dgraph-io/dgo/protos/api"
+	"github.com/dgraph-io/dgo/v200"
+	"github.com/dgraph-io/dgo/v200/protos/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -378,7 +378,7 @@ func (s *Server) uploadUser(ctx context.Context, user schema.User) error {
 	return nil
 }
 
-func (s *Server) applyMutation(ctx context.Context, txn *dgo.Txn, v interface{}) (*api.Assigned, error) {
+func (s *Server) applyMutation(ctx context.Context, txn *dgo.Txn, v interface{}) (*api.Response, error) {
 	pb, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
