@@ -18,11 +18,14 @@ import (
 )
 
 func init() {
-	addScraper(&AO3Scraper{})
+	addScraper(&AO3Scraper{
+		limiter: ratelimit.New(1, ratelimit.WithoutSlack),
+	})
 }
 
 type AO3Scraper struct {
-	count int
+	limiter ratelimit.Limiter
+	count   int
 }
 
 func (s AO3Scraper) Domain() string {
@@ -57,7 +60,8 @@ func (s AO3Scraper) storyURL(id int) string {
 	return fmt.Sprintf("https://archiveofourown.org/works/%d", id)
 }
 
-func (AO3Scraper) getLatest() (int, error) {
+func (s AO3Scraper) getLatest() (int, error) {
+	s.limiter.Take()
 	doc, err := goquery.NewDocument("https://archiveofourown.org/works")
 	if err != nil {
 		return 0, err
@@ -88,8 +92,8 @@ func (s *AO3Scraper) Scrape(ctx context.Context, c Consumer) error {
 
 func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
 	// Launch goroutines to fetch documents
-	docs := NewHttpWorkerPool(ctx, 100, ratelimit.New(100))
-	users := NewHttpWorkerPool(ctx, 100, ratelimit.New(100))
+	docs := NewHttpWorkerPool(ctx, 1, s.limiter)
+	users := NewHttpWorkerPool(ctx, 1, s.limiter)
 
 	// Creates jobs
 	go func() {
@@ -128,11 +132,10 @@ func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
 
 		user, err := s.parseUserBookmarks(doc)
 		if err != nil {
-			log.Println(errors.Wrapf(err, "error processing document (url=%s)", doc.Url.String()))
+			log.Printf("%+v", errors.Wrapf(err, "error processing document (url=%s)", doc.Url.String()))
 			continue
 		}
-		log.Printf("user %+v", user)
-		//c.Users <- user
+		c.Users <- user
 	}
 	return nil
 }
@@ -172,8 +175,6 @@ func (sc AO3Scraper) parseUserBookmarks(doc *goquery.Document) (schema.User, err
 	var stories []schema.Document
 	for _, s := range subSelections(doc.Find("ol.bookmark li.bookmark")) {
 		st := schema.Document{}
-		//id := atoi(s.AttrOr("data-storyid", ""))
-		//st.Url = sc.storyURL(id)
 		link := s.Find(".heading a").First()
 		parsedLink, err := url.Parse(link.AttrOr("href", ""))
 		if err != nil {

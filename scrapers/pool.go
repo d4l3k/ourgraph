@@ -92,6 +92,7 @@ func (p *HttpWorkerPool) fetch(ctx context.Context, urlStr string) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "ourgraph/1.0")
 	req = req.WithContext(ctx)
 	resp, err := p.client.Do(req)
 	if err != nil {
