@@ -2,9 +2,11 @@ package scrapers
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -15,17 +17,26 @@ import (
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
+	"golang.org/x/net/proxy"
 	"golang.org/x/time/rate"
+)
+
+var (
+	socksAddr = flag.String("socksaddr", "proxy-nl.privateinternetaccess.com:1080", "address of socks server")
+	socksUser = flag.String("socksuser", "", "socks5 username")
+	socksPass = flag.String("sockspass", "", "socks5 password")
 )
 
 func init() {
 	addScraper(&AO3Scraper{
-		limiter: LimiterWrapper{Limiter: rate.NewLimiter(0.9, 1)},
+		limiter: func() ratelimit.Limiter {
+			return LimiterWrapper{Limiter: rate.NewLimiter(0.25, 1)}
+		},
 	})
 }
 
 type AO3Scraper struct {
-	limiter ratelimit.Limiter
+	limiter func() ratelimit.Limiter
 	count   int
 }
 
@@ -62,7 +73,6 @@ func (s AO3Scraper) storyURL(id int) string {
 }
 
 func (s AO3Scraper) getLatest() (int, error) {
-	s.limiter.Take()
 	doc, err := goquery.NewDocument("https://archiveofourown.org/works")
 	if err != nil {
 		return 0, err
@@ -92,9 +102,23 @@ func (s *AO3Scraper) Scrape(ctx context.Context, c Consumer) error {
 }
 
 func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
+	limiter := ratelimit.New(5)
 	// Launch goroutines to fetch documents
-	docs := NewHttpWorkerPool(ctx, 1, s.limiter)
-	users := NewHttpWorkerPool(ctx, 1, s.limiter)
+	docs := NewHttpWorkerPool(ctx, 100, limiter)
+	users := NewHttpWorkerPool(ctx, 100, limiter)
+
+	dial, err := proxy.SOCKS5("tcp", *socksAddr, &proxy.Auth{User: *socksUser, Password: *socksPass}, nil)
+	if err != nil {
+		return err
+	}
+	transport := &http.Transport{
+		DialContext:       dial.(proxy.ContextDialer).DialContext,
+		DisableKeepAlives: true,
+	}
+
+	// transport := &http.Transport{Proxy: proxy.Proxy(s.limiter), DisableKeepAlives: true}
+	docs.Client.Transport = transport
+	users.Client.Transport = transport
 
 	// Creates jobs
 	go func() {

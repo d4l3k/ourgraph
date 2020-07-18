@@ -16,7 +16,7 @@ import (
 const HttpFetchTimeout = 1 * time.Minute
 
 type HttpWorkerPool struct {
-	client  http.Client
+	Client  http.Client
 	eg      *errgroup.Group
 	jobs    chan string
 	docs    chan *goquery.Document
@@ -31,7 +31,7 @@ func NewHttpWorkerPool(ctx context.Context, workers int, limiter ratelimit.Limit
 		jobs:    make(chan string, capacity),
 		docs:    make(chan *goquery.Document, capacity),
 		limiter: limiter,
-		client: http.Client{
+		Client: http.Client{
 			Timeout: HttpFetchTimeout,
 		},
 		eg: eg,
@@ -94,11 +94,16 @@ func (p *HttpWorkerPool) fetch(ctx context.Context, urlStr string) error {
 	}
 	req.Header.Set("User-Agent", "ourgraph/1.0")
 	req = req.WithContext(ctx)
-	resp, err := p.client.Do(req)
+	resp, err := p.Client.Do(req)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch %q", urlStr)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		p.limiter.Take()
+		p.limiter.Take()
+		p.limiter.Take()
+	}
 	if resp.StatusCode != http.StatusOK {
 		return errors.Errorf("fetch %q status = %s", urlStr, resp.Status)
 	}
