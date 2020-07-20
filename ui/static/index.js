@@ -470,7 +470,9 @@ class OurgraphApp extends LitElement {
           stories.forEach((story, i) => {
             this.add({
               id: i,
-              ...story.Document
+              ...story.document,
+              url: story.document.url.replace(/\W+/g, ' '),
+              tags: story.document.tags.join(' ')
             })
           })
         })
