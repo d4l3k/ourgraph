@@ -264,3 +264,36 @@ Bookmarked by <a href="/users/blah/pseuds/blah/bookmarks">blah</a>
 		t.Errorf("got %+v; wanted %+v", out, want)
 	}
 }
+
+func TestIncrementPageURL(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{
+			in:   "https://archiveofourown.org/users/foo/bookmarks",
+			want: "https://archiveofourown.org/users/foo/bookmarks?page=2",
+		},
+		{
+			in:   "https://archiveofourown.org/users/foo/bookmarks?page=2",
+			want: "https://archiveofourown.org/users/foo/bookmarks?page=3",
+		},
+	}
+	var s AO3Scraper
+	for i, c := range cases {
+		uri, err := url.Parse(c.in)
+		if err != nil {
+			t.Errorf("%d. failed to parse: %+v", i, err)
+			continue
+		}
+		incremented, err := s.incrementPageURL(uri)
+		if err != nil {
+			t.Errorf("%d. failed to increment: %+v", i, err)
+			continue
+		}
+		out := incremented.String()
+		if c.want != out {
+			t.Errorf("%d. wanted %q; got %q", i, c.want, out)
+		}
+	}
+}

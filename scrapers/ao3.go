@@ -2,7 +2,6 @@ package scrapers
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -14,23 +13,17 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/d4l3k/ourgraph/proxy"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
-	"golang.org/x/net/proxy"
 	"golang.org/x/time/rate"
-)
-
-var (
-	socksAddr = flag.String("socksaddr", "proxy-nl.privateinternetaccess.com:1080", "address of socks server")
-	socksUser = flag.String("socksuser", "", "socks5 username")
-	socksPass = flag.String("sockspass", "", "socks5 password")
 )
 
 func init() {
 	addScraper(&AO3Scraper{
 		limiter: func() ratelimit.Limiter {
-			return LimiterWrapper{Limiter: rate.NewLimiter(0.25, 1)}
+			return LimiterWrapper{Limiter: rate.NewLimiter(0.20, 1)}
 		},
 	})
 }
@@ -73,7 +66,17 @@ func (s AO3Scraper) storyURL(id int) string {
 }
 
 func (s AO3Scraper) getLatest() (int, error) {
-	doc, err := goquery.NewDocument("https://archiveofourown.org/works")
+	const target = "https://archiveofourown.org/works/search?utf8=%E2%9C%93&work_search%5Bquery%5D=+&work_search%5Btitle%5D=&work_search%5Bcreators%5D=&work_search%5Brevised_at%5D=&work_search%5Bcomplete%5D=&work_search%5Bcrossover%5D=&work_search%5Bsingle_chapter%5D=0&work_search%5Bword_count%5D=&work_search%5Blanguage_id%5D=&work_search%5Bfandom_names%5D=&work_search%5Brating_ids%5D=&work_search%5Bcharacter_names%5D=&work_search%5Brelationship_names%5D=&work_search%5Bfreeform_names%5D=&work_search%5Bhits%5D=&work_search%5Bkudos_count%5D=&work_search%5Bcomments_count%5D=&work_search%5Bbookmarks_count%5D=&work_search%5Bsort_column%5D=created_at&work_search%5Bsort_direction%5D=desc&commit=Search"
+	//const target = "https://archiveofourown.org/works"
+	resp, err := http.Get(target)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, errors.Errorf("get %q status = %s", resp.Request.URL.String(), resp.Status)
+	}
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return 0, err
 	}
@@ -101,24 +104,40 @@ func (s *AO3Scraper) Scrape(ctx context.Context, c Consumer) error {
 	return s.scrape(ctx, c)
 }
 
-func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
-	limiter := ratelimit.New(5)
-	// Launch goroutines to fetch documents
-	docs := NewHttpWorkerPool(ctx, 100, limiter)
-	users := NewHttpWorkerPool(ctx, 100, limiter)
+func (AO3Scraper) incrementPageURL(uri *url.URL) (*url.URL, error) {
+	copied, err := url.Parse(uri.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to copy URL: %q", uri.String())
+	}
+	const pageKey = "page"
+	query := copied.Query()
+	pageStr := query.Get(pageKey)
+	var page int
+	if pageStr == "" {
+		page = 2
+	} else {
+		parsed, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, err
+		}
+		page = parsed + 1
+	}
+	query.Set(pageKey, strconv.Itoa(page))
+	copied.RawQuery = query.Encode()
+	return copied, nil
+}
 
-	dial, err := proxy.SOCKS5("tcp", *socksAddr, &proxy.Auth{User: *socksUser, Password: *socksPass}, nil)
+func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
+	// Launch goroutines to fetch documents
+	docs := NewHttpWorkerPool(ctx, 100, ratelimit.NewUnlimited())
+	users := NewHttpWorkerPool(ctx, 100, ratelimit.NewUnlimited())
+
+	proxyPool, err := proxy.MakePool(s.limiter)
 	if err != nil {
 		return err
 	}
-	transport := &http.Transport{
-		DialContext:       dial.(proxy.ContextDialer).DialContext,
-		DisableKeepAlives: true,
-	}
-
-	// transport := &http.Transport{Proxy: proxy.Proxy(s.limiter), DisableKeepAlives: true}
-	docs.Client.Transport = transport
-	users.Client.Transport = transport
+	docs.ClientFactory = proxyPool.Get
+	users.ClientFactory = proxyPool.Get
 
 	// Creates jobs
 	go func() {
@@ -161,6 +180,14 @@ func (s AO3Scraper) scrape(ctx context.Context, c Consumer) error {
 			continue
 		}
 		c.Users <- user
+		if len(user.Likes) > 0 {
+			incremented, err := s.incrementPageURL(doc.Url)
+			if err != nil {
+				log.Printf("%+v", errors.Wrapf(err, "error incrementing URL (url=%s)", doc.Url.String()))
+				continue
+			}
+			users.SchedulePriority(ctx, incremented.String())
+		}
 	}
 	return nil
 }

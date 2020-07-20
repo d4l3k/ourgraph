@@ -16,23 +16,29 @@ import (
 const HttpFetchTimeout = 1 * time.Minute
 
 type HttpWorkerPool struct {
-	Client  http.Client
-	eg      *errgroup.Group
-	jobs    chan string
-	docs    chan *goquery.Document
-	limiter ratelimit.Limiter
+	ClientFactory func() *http.Client
+	eg            *errgroup.Group
+	jobs          chan string
+	priorityJobs  chan string
+	docs          chan *goquery.Document
+	limiter       ratelimit.Limiter
 }
 
 func NewHttpWorkerPool(ctx context.Context, workers int, limiter ratelimit.Limiter) *HttpWorkerPool {
 	const capacity = 16
 
+	client := &http.Client{
+		Timeout: HttpFetchTimeout,
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 	p := &HttpWorkerPool{
-		jobs:    make(chan string, capacity),
-		docs:    make(chan *goquery.Document, capacity),
-		limiter: limiter,
-		Client: http.Client{
-			Timeout: HttpFetchTimeout,
+		jobs:         make(chan string, capacity),
+		priorityJobs: make(chan string, workers),
+		docs:         make(chan *goquery.Document, capacity),
+		limiter:      limiter,
+		ClientFactory: func() *http.Client {
+			return client
 		},
 		eg: eg,
 	}
@@ -61,7 +67,6 @@ func (p *HttpWorkerPool) Output() <-chan *goquery.Document {
 
 // Schedule schedules some work to be completed. If too many things are being
 // scheduled schedule will block.
-// Not thread safe.
 func (p *HttpWorkerPool) Schedule(ctx context.Context, url string) {
 	select {
 	case p.jobs <- url:
@@ -69,13 +74,30 @@ func (p *HttpWorkerPool) Schedule(ctx context.Context, url string) {
 	}
 }
 
+// SchedulePriority schedules some work to be completed before schedule. If too
+// many things are being scheduled schedule will discard
+func (p *HttpWorkerPool) SchedulePriority(ctx context.Context, url string) {
+	select {
+	case p.priorityJobs <- url:
+	case <-ctx.Done():
+	default:
+	}
+}
+
 func (p *HttpWorkerPool) worker(ctx context.Context) error {
-	for u := range p.jobs {
+	for {
+		var urlStr string
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case urlStr = <-p.priorityJobs:
+		case urlStr = <-p.jobs:
+		}
 		if ctx.Err() != nil {
-			return nil
+			return ctx.Err()
 		}
 
-		if err := p.fetch(ctx, u); err != nil {
+		if err := p.fetch(ctx, urlStr); err != nil {
 			log.Printf("fetch failed: %s", err)
 		}
 	}
@@ -94,12 +116,16 @@ func (p *HttpWorkerPool) fetch(ctx context.Context, urlStr string) error {
 	}
 	req.Header.Set("User-Agent", "ourgraph/1.0")
 	req = req.WithContext(ctx)
-	resp, err := p.Client.Do(req)
+	resp, err := p.ClientFactory().Do(req)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch %q", urlStr)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusTooManyRequests {
+		select {
+		case p.jobs <- urlStr:
+		default:
+		}
 		p.limiter.Take()
 		p.limiter.Take()
 		p.limiter.Take()

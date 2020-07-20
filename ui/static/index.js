@@ -1,4 +1,4 @@
-/* global _, Trianglify, lunr, customElements, fetch, Math */
+/* global _, Trianglify, lunr, customElements, fetch, Math, URL */
 'use strict'
 
 import 'https://unpkg.com/@webcomponents/webcomponentsjs/webcomponents-loader.js?module'
@@ -184,11 +184,17 @@ class StoryElement extends LitElement {
         .secondary-content {
           float: right;
         }
+        .domain {
+          float: right;
+          font-size: 0.8em;
+        }
       </style>
-      <a href="${document.url}" class="title">
-        ${document.title}
+      <span class="title">
+        <a href="${document.url}">
+          ${document.title}
+        </a>
         ${document.author ? ' by ' + document.author : ''}
-      </a>
+      </span>
       ${score ? (' - ' + this.roundTo(score, 2)) : ''}
       <span class="secondary-content">
         <a href="#/story/${document.url}">Recommend</a>
@@ -199,8 +205,15 @@ class StoryElement extends LitElement {
       <div class="stats">
         ${this.desc(document)}
       </div>
+      <div class="domain">
+        ${this.hostname(document)}
+      </div>
       ${this.renderLinks(links)}
     `
+  }
+
+  hostname (document) {
+    return (new URL(document.url)).hostname.replace(/^(www\.)/, '')
   }
 
   renderLinks (links) {
@@ -235,7 +248,7 @@ class StoryElement extends LitElement {
     if (document.tags) {
       out.push(`Tags: ${(document.tags || []).slice(0, 25).join(', ')}`)
     }
-    return out.join(' - ');
+    return out.join(' - ')
   }
 }
 
@@ -452,6 +465,7 @@ class OurgraphApp extends LitElement {
           this.field('title')
           this.field('desc')
           this.field('tags')
+          this.field('url')
 
           stories.forEach((story, i) => {
             this.add({
