@@ -15,7 +15,7 @@ func TestGetLatest(t *testing.T) {
 	t.Parallel()
 
 	s := AO3Scraper{
-		limiter: ratelimit.NewUnlimited(),
+		limiter: ratelimit.NewUnlimited,
 	}
 	id, err := s.getLatest()
 	if err != nil {
@@ -233,6 +233,7 @@ Bookmarked by <a href="/users/blah/pseuds/blah/bookmarks">blah</a>
 				Url:       "https://archiveofourown.org/works/23320288",
 				Name:      "what's in a name?",
 				Author:    "wordscorrupt",
+				Chapters:  55,
 				Reviews:   30,
 				LikeCount: 366,
 				WordCount: 527,

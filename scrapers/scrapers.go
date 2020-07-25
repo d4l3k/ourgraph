@@ -3,6 +3,8 @@ package scrapers
 import (
 	"context"
 	"net/url"
+	"regexp"
+	"strconv"
 	"sync"
 
 	"github.com/d4l3k/ourgraph/schema"
@@ -38,4 +40,12 @@ type Scraper interface {
 	Scrape(ctx context.Context, c Consumer) error
 	Normalize(url url.URL) (string, error)
 	Links(doc schema.Document) ([]schema.Link, error)
+}
+
+var nonNumbersRegex = regexp.MustCompile(`\D+`)
+
+func atoi(s string) int {
+	s = nonNumbersRegex.ReplaceAllString(s, "")
+	i, _ := strconv.Atoi(s)
+	return i
 }

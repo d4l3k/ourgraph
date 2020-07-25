@@ -161,11 +161,6 @@ var (
 	ffCharacterRegex  = regexp.MustCompile(`[\[\],]+`)
 )
 
-func atoi(s string) int {
-	i, _ := strconv.Atoi(s)
-	return i
-}
-
 func (s FFNetScraper) userURL(id int) string {
 	return fmt.Sprintf("https://%s/u/%d", s.domain, id)
 }
