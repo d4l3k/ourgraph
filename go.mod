@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.0
+	github.com/cenkalti/backoff/v4 v4.0.2
 	github.com/d4l3k/gotorch v0.0.0-20190914235326-0ec37fd1c78e
 	github.com/dgraph-io/dgo v1.0.0
 	github.com/dgraph-io/dgo/v200 v200.0.0-20200714143556-08d85e5f95a7

@@ -11,7 +11,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/d4l3k/ourgraph/db"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/d4l3k/ourgraph/scrapers"
@@ -50,7 +52,10 @@ func handleRecommendation(r *http.Request) (interface{}, error) {
 		return nil, errors.Errorf("offset must be  >= 0")
 	}
 
-	conn, err := db.NewConn(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Minute)
+	defer cancel()
+
+	conn, err := db.NewConn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +71,7 @@ func handleRecommendation(r *http.Request) (interface{}, error) {
 		s.scrapers[scraper.Domain()] = scraper
 	}
 
-	return s.recommendations(r.Context(), id, limit, offset)
+	return s.recommendations(ctx, id, limit, offset)
 }
 
 func jsonHandler(f func(r *http.Request) (interface{}, error)) http.HandlerFunc {
@@ -111,10 +116,9 @@ func splitURLs(urls string) []string {
 	return arr
 }
 
-func getDocsByURL(ctx context.Context, txn *dgo.Txn, url string) ([]schema.Document, error) {
-	return getDocsInternal(
+func (s *server) getDocsByURL(ctx context.Context, url string) ([]schema.Document, error) {
+	return s.getDocsInternal(
 		ctx,
-		txn,
 		`query docs($url: string) {
 			docs(func: eq(url, $url)) {
 				uid
@@ -140,16 +144,15 @@ func validUID(uid string) bool {
 	return uidRegex.MatchString(uid)
 }
 
-func getDocsByUIDs(ctx context.Context, txn *dgo.Txn, uids []string) ([]schema.Document, error) {
+func (s *server) getDocsByUIDs(ctx context.Context, uids []string) ([]schema.Document, error) {
 	// This method is pretty dangerous since it's doing raw template manipulation.
 	for _, uid := range uids {
 		if !validUID(uid) {
 			return nil, errors.Errorf("invalid uid %q", uid)
 		}
 	}
-	return getDocsInternal(
+	return s.getDocsInternal(
 		ctx,
-		txn,
 		fmt.Sprintf(
 			`{
 				docs(func: uid(%s)) {
@@ -173,10 +176,10 @@ func getDocsByUIDs(ctx context.Context, txn *dgo.Txn, uids []string) ([]schema.D
 	)
 }
 
-func getDocsInternal(ctx context.Context, txn *dgo.Txn, query string, params map[string]string) ([]schema.Document, error) {
-	resp, err := txn.QueryWithVars(ctx, query, params)
+func (s *server) getDocsInternal(ctx context.Context, query string, params map[string]string) ([]schema.Document, error) {
+	resp, err := s.queryWithVars(ctx, query, params)
 	if err != nil {
-		return nil, errors.Wrapf(err, "QueryWithVars")
+		return nil, err
 	}
 	results := struct {
 		Docs []schema.Document `json:"docs"`
@@ -199,6 +202,21 @@ func (s *server) normalizeURL(urlStr string) (string, error) {
 	return scraper.Normalize(*u)
 }
 
+func (s *server) queryWithVars(ctx context.Context, query string, vars map[string]string) (*api.Response, error) {
+	b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
+	var resp *api.Response
+	if err := backoff.Retry(func() error {
+		var err error
+		resp, err = s.dgo.NewReadOnlyTxn().BestEffort().QueryWithVars(
+			b.Context(), query, vars,
+		)
+		return err
+	}, b); err != nil {
+		return nil, errors.Wrapf(err, "queryWithVars")
+	}
+	return resp, nil
+}
+
 func (s *server) recommendations(ctx context.Context, id string, limit, offset int) (response, error) {
 	urls := splitURLs(id)
 
@@ -210,12 +228,10 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 		urls[i] = u
 	}
 
-	txn := s.dgo.NewReadOnlyTxn().BestEffort()
-
 	// Fetch documents first
 	var docs []schema.Document
 	for _, url := range urls {
-		doc, err := getDocsByURL(ctx, txn, url)
+		doc, err := s.getDocsByURL(ctx, url)
 		if err != nil {
 			return response{}, err
 		}
@@ -228,7 +244,7 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 	// Fetch recommendations
 	recs := map[string]recommendation{}
 	for _, url := range urls {
-		resp, err := txn.QueryWithVars(ctx,
+		resp, err := s.queryWithVars(ctx,
 			`query recs($url: string) {
 				recs(func: eq(url, $url)) @ignorereflex {
 					~likes (first: 1000) @facets(rating) {
@@ -307,7 +323,7 @@ func (s *server) recommendations(ctx context.Context, id string, limit, offset i
 	for _, rec := range recList {
 		uids = append(uids, rec.Document.Uid)
 	}
-	recDocs, err := getDocsByUIDs(ctx, txn, uids)
+	recDocs, err := s.getDocsByUIDs(ctx, uids)
 	if err != nil {
 		return response{}, err
 	}

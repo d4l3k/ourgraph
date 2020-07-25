@@ -472,7 +472,7 @@ class OurgraphApp extends LitElement {
               id: i,
               ...story.document,
               url: story.document.url.replace(/\W+/g, ' '),
-              tags: story.document.tags.join(' ')
+              tags: (story.document.tags || []).join(' ')
             })
           })
         })

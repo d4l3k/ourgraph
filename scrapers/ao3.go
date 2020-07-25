@@ -23,7 +23,7 @@ import (
 func init() {
 	addScraper(&AO3Scraper{
 		limiter: func() ratelimit.Limiter {
-			return LimiterWrapper{Limiter: rate.NewLimiter(0.20, 1)}
+			return LimiterWrapper{Limiter: rate.NewLimiter(0.15, 1)}
 		},
 	})
 }
