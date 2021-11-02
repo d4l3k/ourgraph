@@ -14,8 +14,8 @@ import (
 	"github.com/d4l3k/ourgraph/db"
 	"github.com/d4l3k/ourgraph/schema"
 	"github.com/d4l3k/ourgraph/scrapers"
-	"github.com/dgraph-io/dgo/v200"
-	"github.com/dgraph-io/dgo/v200/protos/api"
+	"github.com/dgraph-io/dgo/v210"
+	"github.com/dgraph-io/dgo/v210/protos/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )

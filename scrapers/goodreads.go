@@ -1,6 +1,7 @@
 package scrapers
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -237,15 +238,13 @@ func (s GoodreadsScraper) getSiteMap(url string) (goodreadsSiteMap, error) {
 	}
 
 	var reader io.Reader = resp.Body
-	/*
-		if strings.HasSuffix(url, ".gz") {
-			gzReader, err := gzip.NewReader(reader)
-			if err != nil {
-				return goodreadsSiteMap{}, err
-			}
-			reader = gzReader
+	if strings.HasSuffix(url, ".gz") {
+		gzReader, err := gzip.NewReader(reader)
+		if err != nil {
+			return goodreadsSiteMap{}, err
 		}
-	*/
+		reader = gzReader
+	}
 
 	var idx goodreadsSiteMap
 	if err := xml.NewDecoder(reader).Decode(&idx); err != nil {

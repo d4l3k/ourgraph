@@ -22,8 +22,8 @@ import (
 )
 
 func init() {
-	addScraper(&FFNetScraper{domain: "www.fanfiction.net"})
-	addScraper(&FFNetScraper{domain: "www.fictionpress.com"})
+	//addScraper(&FFNetScraper{domain: "www.fanfiction.net"})
+	//addScraper(&FFNetScraper{domain: "www.fictionpress.com"})
 }
 
 type FFNetScraper struct {
@@ -59,13 +59,14 @@ func (s FFNetScraper) Normalize(u url.URL) (string, error) {
 }
 
 func (s FFNetScraper) userExists(id int) (bool, error) {
-	resp, err := http.Get(s.userURL(id))
+	uri := s.userURL(id)
+	resp, err := http.Get(uri)
 	if err != nil {
 		return false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return false, errors.Errorf("got invalid status %s", resp.Status)
+		return false, errors.Errorf("%q: got invalid status %s", uri, resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
