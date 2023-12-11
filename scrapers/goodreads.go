@@ -157,7 +157,7 @@ func (s GoodreadsScraper) userCount() (int, error) {
 }
 
 func (s *GoodreadsScraper) Scrape(ctx context.Context, c Consumer) error {
-	s.limit = ratelimit.New(100)
+	s.limit = ratelimit.New(1)
 
 	var eg errgroup.Group
 
